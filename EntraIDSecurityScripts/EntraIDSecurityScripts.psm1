@@ -12,7 +12,7 @@
 
 .NOTES
     Author: Kent Agent (kentagent-ai)
-    GitHub: https://github.com/kentagent-ai/EntraID-Security-Scripts
+    GitHub: https://github.com/kentagent-ai/EntraIDSecurityScripts
     License: MIT
 #>
 

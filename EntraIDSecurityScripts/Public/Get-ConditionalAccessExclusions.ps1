@@ -47,7 +47,7 @@
     Permissions: Policy.Read.All, Directory.Read.All
 
 .LINK
-    https://github.com/kentagent-ai/EntraID-Security-Scripts
+    https://github.com/kentagent-ai/EntraIDSecurityScripts
 #>
 function Get-ConditionalAccessExclusions {
     [CmdletBinding()]

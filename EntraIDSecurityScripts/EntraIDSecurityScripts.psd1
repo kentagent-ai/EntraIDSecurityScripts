@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '1.0.0'
+    ModuleVersion     = '1.0.1'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -55,16 +55,20 @@
             )
             
             # License URI
-            LicenseUri   = 'https://github.com/kentagent-ai/EntraID-Security-Scripts/blob/main/LICENSE'
+            LicenseUri   = 'https://github.com/kentagent-ai/EntraIDSecurityScripts/blob/main/LICENSE'
             
             # Project URI
-            ProjectUri   = 'https://github.com/kentagent-ai/EntraID-Security-Scripts'
+            ProjectUri   = 'https://github.com/kentagent-ai/EntraIDSecurityScripts'
             
             # Icon URI (optional)
             # IconUri = ''
             
             # Release notes
             ReleaseNotes = @'
+## Version 1.0.1
+- Renamed GitHub repository to match module name
+- Updated all documentation links
+
 ## Version 1.0.0
 
 Initial release with the following functions:
@@ -104,5 +108,5 @@ Initial release with the following functions:
     }
     
     # Help info URI
-    HelpInfoURI       = 'https://github.com/kentagent-ai/EntraID-Security-Scripts/blob/main/docs/'
+    HelpInfoURI       = 'https://github.com/kentagent-ai/EntraIDSecurityScripts/blob/main/docs/'
 }

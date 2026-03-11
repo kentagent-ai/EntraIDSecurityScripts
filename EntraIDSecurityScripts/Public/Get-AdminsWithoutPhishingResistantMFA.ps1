@@ -42,7 +42,7 @@
     Permissions: Policy.Read.All, Directory.Read.All, RoleManagement.Read.Directory, UserAuthenticationMethod.Read.All
 
 .LINK
-    https://github.com/kentagent-ai/EntraID-Security-Scripts
+    https://github.com/kentagent-ai/EntraIDSecurityScripts
 #>
 function Get-AdminsWithoutPhishingResistantMFA {
     [CmdletBinding()]

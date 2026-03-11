@@ -17,10 +17,10 @@ Install-Module -Name EntraIDSecurityScripts -Scope CurrentUser
 
 ```powershell
 # Clone the repository
-git clone https://github.com/kentagent-ai/EntraID-Security-Scripts.git
+git clone https://github.com/kentagent-ai/EntraIDSecurityScripts.git
 
 # Import the module
-Import-Module ./EntraID-Security-Scripts/src/EntraIDSecurityScripts.psd1
+Import-Module ./EntraIDSecurityScripts/src/EntraIDSecurityScripts.psd1
 ```
 
 ## 🚀 Quick Start
@@ -126,7 +126,7 @@ Get-AdminsWithoutPhishingResistantMFA |
 ## 📁 Module Structure
 
 ```
-EntraID-Security-Scripts/
+EntraIDSecurityScripts/
 ├── src/
 │   ├── EntraIDSecurityScripts.psd1    # Module manifest
 │   ├── EntraIDSecurityScripts.psm1    # Root module
