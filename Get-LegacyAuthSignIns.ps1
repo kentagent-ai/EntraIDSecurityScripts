@@ -99,7 +99,7 @@ function Get-LegacyAuthSignIns {
         
         Write-Verbose "Querying sign-in logs from $startDate..."
 
-        # Build filter
+        # Build base filter
         $filterParts = @(
             "createdDateTime ge $startDate"
         )
@@ -127,17 +127,46 @@ function Get-LegacyAuthSignIns {
             }
         }
 
-        $filter = $filterParts -join ' and '
+        $baseFilter = $filterParts -join ' and '
         
-        Write-Verbose "Filter: $filter"
-
+        # IMPORTANT: By default, GET /auditLogs/signIns only returns interactive sign-ins
+        # We need to query both interactive AND non-interactive sign-ins for complete coverage
+        # Legacy auth can occur in both scenarios (especially service accounts using SMTP/IMAP)
+        
+        $allSignIns = [System.Collections.Generic.List[object]]::new()
+        
+        # Query interactive sign-ins
+        $interactiveFilter = "$baseFilter"
+        Write-Verbose "Querying interactive sign-ins: $interactiveFilter"
+        
         try {
-            # Get sign-ins (may need to page through results)
-            $signIns = Get-MgAuditLogSignIn -Filter $filter -All -ErrorAction Stop
+            $interactiveSignIns = Get-MgAuditLogSignIn -Filter $interactiveFilter -All -ErrorAction Stop
+            foreach ($signIn in $interactiveSignIns) {
+                $allSignIns.Add($signIn)
+            }
+            Write-Verbose "Found $($interactiveSignIns.Count) interactive sign-ins"
         }
         catch {
-            throw "Failed to retrieve sign-in logs: $_"
+            Write-Warning "Failed to retrieve interactive sign-in logs: $_"
         }
+        
+        # Query non-interactive sign-ins (service principal sign-ins often use legacy auth)
+        # signInEventTypes filter: 'nonInteractiveUser' for non-interactive user sign-ins
+        $nonInteractiveFilter = "$baseFilter and signInEventTypes/any(t: t eq 'nonInteractiveUser')"
+        Write-Verbose "Querying non-interactive sign-ins: $nonInteractiveFilter"
+        
+        try {
+            $nonInteractiveSignIns = Get-MgAuditLogSignIn -Filter $nonInteractiveFilter -All -ErrorAction Stop
+            foreach ($signIn in $nonInteractiveSignIns) {
+                $allSignIns.Add($signIn)
+            }
+            Write-Verbose "Found $($nonInteractiveSignIns.Count) non-interactive sign-ins"
+        }
+        catch {
+            Write-Warning "Failed to retrieve non-interactive sign-in logs: $_"
+        }
+        
+        $signIns = $allSignIns
 
         Write-Verbose "Retrieved $($signIns.Count) sign-ins, filtering for legacy auth..."
 

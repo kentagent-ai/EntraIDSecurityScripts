@@ -36,9 +36,11 @@ Get-LegacyAuthSignIns -Days 7 | Format-Table
 
 | Script | Permissions |
 |--------|-------------|
-| Get-ConditionalAccessExclusions | Policy.Read.All, Directory.Read.All |
+| Get-ConditionalAccessExclusions | Policy.Read.All, Directory.Read.All, GroupMember.Read.All |
 | Get-LegacyAuthSignIns | AuditLog.Read.All |
-| Get-AdminsWithoutPhishingResistantMFA | Policy.Read.All, Directory.Read.All, RoleManagement.Read.Directory |
+| Get-AdminsWithoutPhishingResistantMFA | RoleManagement.Read.Directory, UserAuthenticationMethod.Read.All |
+
+> **Note:** Permissions verified using the [msgraph skill](https://graph.pm) against the latest Microsoft Graph API documentation.
 
 ## 📝 License
 
