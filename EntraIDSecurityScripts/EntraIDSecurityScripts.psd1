@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '1.0.1'
+    ModuleVersion     = '1.0.2'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -65,9 +65,9 @@
             
             # Release notes
             ReleaseNotes = @'
-## Version 1.0.1
+## Version 1.0.2
 - Renamed GitHub repository to match module name
-- Updated all documentation links
+- Updated all documentation links to new repo URL
 
 ## Version 1.0.0
 
