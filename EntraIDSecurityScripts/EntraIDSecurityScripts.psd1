@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.0.0'
+    ModuleVersion     = '2.0.1'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
