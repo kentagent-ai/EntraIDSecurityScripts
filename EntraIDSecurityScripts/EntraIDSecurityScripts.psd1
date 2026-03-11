@@ -15,13 +15,9 @@
     # Minimum PowerShell version
     PowerShellVersion = '7.0'
     
-    # Required modules
-    RequiredModules   = @(
-        @{
-            ModuleName    = 'Microsoft.Graph.Authentication'
-            ModuleVersion = '2.0.0'
-        }
-    )
+    # Required modules (commented out to allow installation without Graph pre-installed)
+    # Users should install Microsoft.Graph.Authentication separately
+    # RequiredModules   = @('Microsoft.Graph.Authentication')
     
     # Functions to export
     FunctionsToExport = @(
