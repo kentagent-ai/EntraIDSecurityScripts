@@ -54,12 +54,17 @@ Get-AdminsWithoutPhishingResistantMFA
 
 ## 📋 Functions
 
-| Function | Description |
-|----------|-------------|
-| `Get-ConditionalAccessExclusions` | Audit all exclusions in Conditional Access policies |
-| `Get-LegacyAuthSignIns` | Find sign-ins using legacy authentication protocols |
-| `Get-AdminsWithoutPhishingResistantMFA` | Identify privileged users without strong MFA |
-| `Test-EntraIDSecurityModuleConnection` | Verify Graph connection and required scopes |
+| Function | Description | Risk Focus |
+|----------|-------------|------------|
+| `Get-ConditionalAccessExclusions` | Audit all CA policy exclusions | Policy Gaps |
+| `Get-LegacyAuthSignIns` | Find legacy authentication sign-ins | Authentication |
+| `Get-AdminsWithoutPhishingResistantMFA` | Privileged users without strong MFA | Admin Security |
+| `Get-UserConsentedApplications` | **NEW** Discover "Shadow IT" apps | App Consent |
+| `Get-InactiveUsersWithoutMFA` | **NEW** Dormant accounts without MFA | Account Hygiene |
+| `Get-ExcessiveAppPermissions` | **NEW** Overprivileged app permissions | App Permissions |
+| `Get-SyncedPrivilegedAccounts` | **NEW** On-prem synced admin accounts | Hybrid Security |
+| `Get-UnprotectedServicePrincipals` | **NEW** Service principals with weak credentials | App Credentials |
+| `Test-EntraIDSecurityModuleConnection` | Verify Graph connection and scopes | Utility |
 
 ## 🔑 Required Permissions
 

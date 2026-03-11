@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '1.0.2'
+    ModuleVersion     = '2.0.0'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -24,6 +24,11 @@
         'Get-ConditionalAccessExclusions'
         'Get-LegacyAuthSignIns'
         'Get-AdminsWithoutPhishingResistantMFA'
+        'Get-UserConsentedApplications'
+        'Get-InactiveUsersWithoutMFA'
+        'Get-ExcessiveAppPermissions'
+        'Get-SyncedPrivilegedAccounts'
+        'Get-UnprotectedServicePrincipals'
         'Test-EntraIDSecurityModuleConnection'
     )
     
@@ -65,11 +70,23 @@
             
             # Release notes
             ReleaseNotes = @'
-## Version 1.0.2
-- Renamed GitHub repository to match module name
-- Updated all documentation links to new repo URL
+## Version 2.0.0
 
-## Version 1.0.0
+MAJOR UPDATE - 5 new security audit functions!
+
+### New Functions:
+- Get-UserConsentedApplications - Discover "Shadow IT" via user consents
+- Get-InactiveUsersWithoutMFA - Find dormant accounts without MFA
+- Get-ExcessiveAppPermissions - Audit overprivileged Graph API permissions
+- Get-SyncedPrivilegedAccounts - Find on-prem synced admin accounts
+- Get-UnprotectedServicePrincipals - Service principals with credential issues
+
+### Improvements:
+- Risk scoring across all functions (CRITICAL/HIGH/MEDIUM/LOW)
+- Better summary output with color-coded warnings
+- Enhanced documentation
+
+## Version 1.0.0-1.0.2
 
 Initial release with the following functions:
 
