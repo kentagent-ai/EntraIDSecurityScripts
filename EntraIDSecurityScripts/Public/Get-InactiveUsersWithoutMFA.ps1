@@ -51,6 +51,10 @@ function Get-InactiveUsersWithoutMFA {
         [bool]$IncludeGuests = $false,
 
         [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 10000)]
+        [int]$MaxResults,
+
+        [Parameter(Mandatory = $false)]
         [string]$ExportPath
     )
 
@@ -69,8 +73,25 @@ function Get-InactiveUsersWithoutMFA {
         Write-Verbose "Retrieving users with sign-in activity..."
 
         try {
-            # Get users with sign-in activity
-            $users = Get-MgUser -All -Property Id,DisplayName,UserPrincipalName,AccountEnabled,UserType,CreatedDateTime,SignInActivity -ErrorAction Stop
+            # PERFORMANCE: Filter at API level + only select needed properties
+            $filter = "accountEnabled eq true"
+            if (-not $IncludeGuests) {
+                $filter += " and userType eq 'Member'"
+            }
+            
+            $getUserParams = @{
+                Filter = $filter
+                Select = 'Id,DisplayName,UserPrincipalName,AccountEnabled,UserType,CreatedDateTime,SignInActivity'
+                ErrorAction = 'Stop'
+            }
+            
+            if ($MaxResults) {
+                $getUserParams.Top = $MaxResults
+                $users = Get-MgUser @getUserParams
+            } else {
+                $getUserParams.All = $true
+                $users = Get-MgUser @getUserParams
+            }
         }
         catch {
             throw "Failed to retrieve users: $_"
@@ -79,10 +100,6 @@ function Get-InactiveUsersWithoutMFA {
         Write-Verbose "Processing $($users.Count) users..."
 
         foreach ($user in $users) {
-            # Filter disabled accounts
-            if (-not $user.AccountEnabled) {
-                continue
-            }
 
             # Filter guests if requested
             if (-not $IncludeGuests -and $user.UserType -eq 'Guest') {
@@ -112,9 +129,10 @@ function Get-InactiveUsersWithoutMFA {
             }
 
             if (-not $isInactive) {
-                continue  # User is active
+                continue  # User is active - skip MFA check (performance optimization)
             }
 
+            # PERFORMANCE: Only check MFA for inactive users
             # Check MFA registration
             $hasMFA = $false
             $mfaMethods = @()

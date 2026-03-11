@@ -25,10 +25,19 @@ function Get-ExcessiveAppPermissions {
     )
     
     $results = @()
-    $sps = Get-MgServicePrincipal -All
+    
+    # PERFORMANCE: Filter and select only needed properties
+    $filter = if (-not $IncludeMicrosoftApps) {
+        "appOwnerOrganizationId ne '72f988bf-86f1-41af-91ab-2d7cd011db47'"
+    } else { $null }
+    
+    $sps = if ($filter) {
+        Get-MgServicePrincipal -Filter $filter -Select Id,DisplayName,AppId,ServicePrincipalType,AppRoles -All
+    } else {
+        Get-MgServicePrincipal -Select Id,DisplayName,AppId,ServicePrincipalType,AppRoles -All
+    }
     
     foreach ($sp in $sps) {
-        if (-not $IncludeMicrosoftApps -and $sp.AppOwnerOrganizationId -eq '72f988bf-86f1-41af-91ab-2d7cd011db47') { continue }
         
         $appRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $sp.Id -ErrorAction SilentlyContinue
         $riskyPerms = @()

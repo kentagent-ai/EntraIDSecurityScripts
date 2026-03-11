@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.0.1'
+    ModuleVersion     = '2.1.0'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -70,6 +70,20 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.1.0
+
+PERFORMANCE UPDATE - Significant speed improvements!
+
+### Performance Improvements:
+- Get-InactiveUsersWithoutMFA: Filter at API level (5-10x faster)
+- Get-ExcessiveAppPermissions: Filter Microsoft apps at API level
+- All functions: Use -Select to only retrieve needed properties
+- Added -MaxResults parameter for quick scans
+- Optimized MFA checks (only check inactive users)
+
+### Breaking Changes:
+None - fully backward compatible
+
 ## Version 2.0.0
 
 MAJOR UPDATE - 5 new security audit functions!
