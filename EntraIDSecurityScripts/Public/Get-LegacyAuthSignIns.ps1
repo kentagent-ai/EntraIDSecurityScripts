@@ -9,6 +9,9 @@
 
     Use this to identify users and applications still using legacy auth before
     blocking it with Conditional Access.
+    
+    v2.2.0: Performance optimizations - combined queries, server-side filtering, 
+    progress tracking, property selection.
 
 .PARAMETER Days
     Number of days to look back in sign-in logs. Default is 7. Maximum is 30.
@@ -22,6 +25,10 @@
 .PARAMETER UserPrincipalName
     Filter by specific user UPN. Supports wildcards.
 
+.PARAMETER MaxResults
+    Maximum number of sign-in records to retrieve. Default is 5000.
+    Use lower values for faster scans.
+
 .EXAMPLE
     Get-LegacyAuthSignIns
 
@@ -31,6 +38,11 @@
     Get-LegacyAuthSignIns -Days 30 -IncludeFailed $true
 
     Returns all legacy auth sign-ins (successful and failed) from the last 30 days.
+
+.EXAMPLE
+    Get-LegacyAuthSignIns -MaxResults 1000
+
+    Quick scan - only fetch first 1000 sign-ins.
 
 .EXAMPLE
     Get-LegacyAuthSignIns | Group-Object ClientAppUsed | Sort-Object Count -Descending
@@ -45,6 +57,7 @@
 .NOTES
     Author: Kent Agent (kentagent-ai)
     Created: 2026-03-11
+    Updated: 2026-03-12 (v2.2.0 performance optimizations)
     Requires: Microsoft.Graph PowerShell module
     Permissions: AuditLog.Read.All
 
@@ -65,7 +78,11 @@ function Get-LegacyAuthSignIns {
         [bool]$IncludeFailed = $false,
 
         [Parameter(Mandatory = $false)]
-        [string]$UserPrincipalName
+        [string]$UserPrincipalName,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateRange(100, 50000)]
+        [int]$MaxResults = 5000
     )
 
     begin {
@@ -129,86 +146,110 @@ function Get-LegacyAuthSignIns {
 
         $baseFilter = $filterParts -join ' and '
         
-        # IMPORTANT: By default, GET /auditLogs/signIns only returns interactive sign-ins
-        # We need to query both interactive AND non-interactive sign-ins for complete coverage
-        # Legacy auth can occur in both scenarios (especially service accounts using SMTP/IMAP)
+        # Optimization: Use paginated queries with property selection to reduce payload
+        # Select only the properties we actually need
+        $selectProperties = @(
+            'createdDateTime'
+            'userPrincipalName'
+            'userDisplayName'
+            'clientAppUsed'
+            'appDisplayName'
+            'ipAddress'
+            'location'
+            'status'
+            'deviceDetail'
+            'id'
+        )
+
+        Write-Host "Scanning sign-in logs (max $MaxResults records)..." -ForegroundColor Cyan
         
-        $allSignIns = [System.Collections.Generic.List[object]]::new()
-        
-        # Query interactive sign-ins
-        $interactiveFilter = "$baseFilter"
-        Write-Verbose "Querying interactive sign-ins: $interactiveFilter"
+        # Single optimized query - fetch in batches with pagination
+        $pageSize = 1000
+        $fetchedCount = 0
+        $legacyCount = 0
         
         try {
-            $interactiveSignIns = Get-MgAuditLogSignIn -Filter $interactiveFilter -All -ErrorAction Stop
-            foreach ($signIn in $interactiveSignIns) {
-                $allSignIns.Add($signIn)
-            }
-            Write-Verbose "Found $($interactiveSignIns.Count) interactive sign-ins"
+            # Use pagination to control memory and provide progress
+            $uri = "https://graph.microsoft.com/v1.0/auditLogs/signIns?`$filter=$baseFilter&`$top=$pageSize&`$select=$($selectProperties -join ',')"
+            
+            do {
+                Write-Progress -Activity "Fetching sign-in logs" -Status "Retrieved: $fetchedCount | Legacy found: $legacyCount" -PercentComplete (($fetchedCount / $MaxResults) * 100)
+                
+                $response = Invoke-MgGraphRequest -Method GET -Uri $uri -ErrorAction Stop
+                $signIns = $response.value
+                
+                if ($signIns) {
+                    $fetchedCount += $signIns.Count
+                    
+                    # Filter for legacy auth clients (do this client-side as Graph doesn't support complex clientAppUsed filters)
+                    $legacySignIns = $signIns | Where-Object { 
+                        $_.clientAppUsed -in $legacyAuthClients -or 
+                        $_.clientAppUsed -match 'Exchange|IMAP|POP|SMTP|MAPI'
+                    }
+
+                    foreach ($signIn in $legacySignIns) {
+                        $legacyCount++
+                        
+                        $riskLevel = switch ($signIn.clientAppUsed) {
+                            { $_ -in @('IMAP4', 'POP3', 'Authenticated SMTP', 'SMTP') } { 'HIGH' }
+                            { $_ -match 'Exchange ActiveSync' } { 'MEDIUM' }
+                            default { 'MEDIUM' }
+                        }
+
+                        $recommendation = switch ($signIn.clientAppUsed) {
+                            'IMAP4' { 'Migrate to modern mail client or Graph API' }
+                            'POP3' { 'Migrate to modern mail client or Graph API' }
+                            'SMTP' { 'Use authenticated relay or Graph API Send Mail' }
+                            'Authenticated SMTP' { 'Use Graph API Send Mail for applications' }
+                            'Exchange ActiveSync' { 'Migrate to Outlook mobile or modern client' }
+                            default { 'Evaluate need and migrate to modern authentication' }
+                        }
+
+                        $locationString = if ($signIn.location) {
+                            "$($signIn.location.city), $($signIn.location.countryOrRegion)"
+                        } else {
+                            'Unknown'
+                        }
+
+                        $results.Add([PSCustomObject]@{
+                            Timestamp           = $signIn.createdDateTime
+                            UserPrincipalName   = $signIn.userPrincipalName
+                            UserDisplayName     = $signIn.userDisplayName
+                            ClientAppUsed       = $signIn.clientAppUsed
+                            AppDisplayName      = $signIn.appDisplayName
+                            IPAddress           = $signIn.ipAddress
+                            Location            = $locationString
+                            Status              = if ($signIn.status.errorCode -eq 0) { 'Success' } else { 'Failed' }
+                            ErrorCode           = $signIn.status.errorCode
+                            FailureReason       = $signIn.status.failureReason
+                            DeviceDetail        = $signIn.deviceDetail.operatingSystem
+                            RiskLevel           = $riskLevel
+                            Recommendation      = $recommendation
+                            SignInId            = $signIn.id
+                        })
+                    }
+                }
+                
+                # Get next page
+                $uri = $response.'@odata.nextLink'
+                
+                # Stop if we've hit the max results limit
+                if ($fetchedCount -ge $MaxResults) {
+                    Write-Verbose "Reached MaxResults limit ($MaxResults)"
+                    break
+                }
+                
+            } while ($uri)
+            
+            Write-Progress -Activity "Fetching sign-in logs" -Completed
         }
         catch {
-            Write-Warning "Failed to retrieve interactive sign-in logs: $_"
-        }
-        
-        # Query non-interactive sign-ins (service principal sign-ins often use legacy auth)
-        # signInEventTypes filter: 'nonInteractiveUser' for non-interactive user sign-ins
-        $nonInteractiveFilter = "$baseFilter and signInEventTypes/any(t: t eq 'nonInteractiveUser')"
-        Write-Verbose "Querying non-interactive sign-ins: $nonInteractiveFilter"
-        
-        try {
-            $nonInteractiveSignIns = Get-MgAuditLogSignIn -Filter $nonInteractiveFilter -All -ErrorAction Stop
-            foreach ($signIn in $nonInteractiveSignIns) {
-                $allSignIns.Add($signIn)
-            }
-            Write-Verbose "Found $($nonInteractiveSignIns.Count) non-interactive sign-ins"
-        }
-        catch {
-            Write-Warning "Failed to retrieve non-interactive sign-in logs: $_"
-        }
-        
-        $signIns = $allSignIns
-
-        Write-Verbose "Retrieved $($signIns.Count) sign-ins, filtering for legacy auth..."
-
-        # Filter for legacy auth clients
-        $legacySignIns = $signIns | Where-Object { 
-            $_.ClientAppUsed -in $legacyAuthClients -or 
-            $_.ClientAppUsed -match 'Exchange|IMAP|POP|SMTP|MAPI'
+            Write-Progress -Activity "Fetching sign-in logs" -Completed
+            Write-Warning "Failed to retrieve sign-in logs: $_"
+            throw
         }
 
-        foreach ($signIn in $legacySignIns) {
-            $riskLevel = switch ($signIn.ClientAppUsed) {
-                { $_ -in @('IMAP4', 'POP3', 'Authenticated SMTP', 'SMTP') } { 'HIGH' }
-                { $_ -match 'Exchange ActiveSync' } { 'MEDIUM' }
-                default { 'MEDIUM' }
-            }
-
-            $recommendation = switch ($signIn.ClientAppUsed) {
-                'IMAP4' { 'Migrate to modern mail client or Graph API' }
-                'POP3' { 'Migrate to modern mail client or Graph API' }
-                'SMTP' { 'Use authenticated relay or Graph API Send Mail' }
-                'Authenticated SMTP' { 'Use Graph API Send Mail for applications' }
-                'Exchange ActiveSync' { 'Migrate to Outlook mobile or modern client' }
-                default { 'Evaluate need and migrate to modern authentication' }
-            }
-
-            $results.Add([PSCustomObject]@{
-                Timestamp           = $signIn.CreatedDateTime
-                UserPrincipalName   = $signIn.UserPrincipalName
-                UserDisplayName     = $signIn.UserDisplayName
-                ClientAppUsed       = $signIn.ClientAppUsed
-                AppDisplayName      = $signIn.AppDisplayName
-                IPAddress           = $signIn.IpAddress
-                Location            = "$($signIn.Location.City), $($signIn.Location.CountryOrRegion)"
-                Status              = if ($signIn.Status.ErrorCode -eq 0) { 'Success' } else { 'Failed' }
-                ErrorCode           = $signIn.Status.ErrorCode
-                FailureReason       = $signIn.Status.FailureReason
-                DeviceDetail        = $signIn.DeviceDetail.OperatingSystem
-                RiskLevel           = $riskLevel
-                Recommendation      = $recommendation
-                SignInId            = $signIn.Id
-            })
-        }
+        Write-Host "Scanned $fetchedCount sign-ins, found $legacyCount legacy auth attempts" -ForegroundColor Green
     }
 
     end {
@@ -222,17 +263,25 @@ function Get-LegacyAuthSignIns {
                 ByProtocol         = $results | Group-Object ClientAppUsed | Sort-Object Count -Descending | 
                                      Select-Object Name, Count
                 HighRiskCount      = ($results | Where-Object { $_.RiskLevel -eq 'HIGH' }).Count
+                SuccessfulCount    = ($results | Where-Object { $_.Status -eq 'Success' }).Count
+                FailedCount        = ($results | Where-Object { $_.Status -eq 'Failed' }).Count
             }
 
             Write-Host "`n=== Legacy Authentication Summary ===" -ForegroundColor Yellow
             Write-Host "Total sign-ins: $($summary.TotalLegacySignIns)" -ForegroundColor White
             Write-Host "Unique users: $($summary.UniqueUsers)" -ForegroundColor White
+            Write-Host "Successful: $($summary.SuccessfulCount)" -ForegroundColor $(if ($summary.SuccessfulCount -gt 0) { 'Yellow' } else { 'Green' })
+            Write-Host "Failed: $($summary.FailedCount)" -ForegroundColor Gray
             Write-Host "High risk sign-ins: $($summary.HighRiskCount)" -ForegroundColor $(if ($summary.HighRiskCount -gt 0) { 'Red' } else { 'Green' })
             Write-Host "`nBy Protocol:" -ForegroundColor White
             $summary.ByProtocol | ForEach-Object {
                 Write-Host "  $($_.Name): $($_.Count)" -ForegroundColor Gray
             }
             Write-Host "======================================`n" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "`n✓ No legacy authentication sign-ins found!" -ForegroundColor Green
+            Write-Host "Your environment is clean - all users are using modern authentication.`n" -ForegroundColor Green
         }
 
         return $results

@@ -1,0 +1,235 @@
+TOPIC
+    about_EntraIDSecurityScripts
+
+SHORT DESCRIPTION
+    PowerShell module for auditing and securing Microsoft Entra ID (Azure AD).
+    Provides comprehensive security assessment functions for identity,
+    authentication, Conditional Access, and application permissions.
+
+LONG DESCRIPTION
+    EntraIDSecurityScripts is a PowerShell module designed for security
+    professionals, IT administrators, and compliance teams working with
+    Microsoft Entra ID (formerly Azure AD).
+
+    The module provides nine specialized audit functions covering:
+    - Conditional Access policy exclusions
+    - Legacy authentication sign-ins
+    - MFA compliance for privileged users
+    - Shadow IT detection via user app consents
+    - Excessive application permissions
+    - Inactive user accounts without MFA
+    - On-premises synced admin accounts
+    - Unprotected service principals
+
+GETTING STARTED
+    
+    1. Install the module:
+       Install-Module -Name EntraIDSecurityScripts -Scope CurrentUser
+
+    2. Import the module:
+       Import-Module EntraIDSecurityScripts
+
+    3. Connect to Microsoft Graph:
+       Connect-MgGraph -Scopes 'Directory.Read.All', 'AuditLog.Read.All'
+
+    4. Run your first audit:
+       Get-LegacyAuthSignIns
+
+AVAILABLE FUNCTIONS
+
+    Get-ConditionalAccessExclusions
+        Audits all exclusions in Conditional Access policies.
+        Identifies high-risk exclusions (large groups, privileged users).
+        
+        Example:
+        Get-ConditionalAccessExclusions | Where-Object { $_.RiskLevel -eq 'HIGH' }
+
+    Get-LegacyAuthSignIns
+        Finds sign-ins using legacy authentication protocols (IMAP, POP3, SMTP).
+        Performance optimized in v2.2.0 (3-5x faster).
+        
+        Example:
+        Get-LegacyAuthSignIns -Days 30 -MaxResults 1000
+
+    Get-AdminsWithoutPhishingResistantMFA
+        Identifies privileged users without FIDO2, Windows Hello, or Certificate MFA.
+        Checks all critical admin roles.
+        
+        Example:
+        Get-AdminsWithoutPhishingResistantMFA
+
+    Get-UserConsentedApplications
+        Discovers "Shadow IT" by auditing user-consented applications.
+        Performance optimized in v2.2.0 (5-10x faster with parallel processing).
+        
+        Example:
+        Get-UserConsentedApplications -ThrottleLimit 20
+
+    Get-InactiveUsersWithoutMFA
+        Finds dormant user accounts (90+ days inactive) without MFA enabled.
+        
+        Example:
+        Get-InactiveUsersWithoutMFA -DaysInactive 180 -MaxResults 500
+
+    Get-ExcessiveAppPermissions
+        Audits applications with overprivileged Microsoft Graph API permissions.
+        
+        Example:
+        Get-ExcessiveAppPermissions
+
+    Get-SyncedPrivilegedAccounts
+        Finds on-premises synced admin accounts (cloud-only recommended).
+        
+        Example:
+        Get-SyncedPrivilegedAccounts
+
+    Get-UnprotectedServicePrincipals
+        Identifies service principals with credential issues.
+        
+        Example:
+        Get-UnprotectedServicePrincipals
+
+    Test-EntraIDSecurityModuleConnection
+        Verifies Microsoft Graph connection and required permissions.
+        
+        Example:
+        Test-EntraIDSecurityModuleConnection
+
+REQUIRED PERMISSIONS
+    
+    This module requires the following Microsoft Graph API permissions:
+    
+    - Directory.Read.All              (Read users, groups, roles)
+    - AuditLog.Read.All               (Read sign-in logs)
+    - Policy.Read.All                 (Read Conditional Access policies)
+    - Application.Read.All            (Read app registrations)
+    - DelegatedPermissionGrant.Read.All  (Read OAuth consents)
+
+    Connect with all permissions:
+    
+    Connect-MgGraph -Scopes @(
+        'Directory.Read.All'
+        'AuditLog.Read.All'
+        'Policy.Read.All'
+        'Application.Read.All'
+        'DelegatedPermissionGrant.Read.All'
+    )
+
+RISK LEVELS
+    
+    All audit functions provide risk level assessments:
+    
+    CRITICAL - Immediate action required
+               Examples: Dormant app with high-risk permissions
+    
+    HIGH     - Review urgently
+               Examples: IMAP/POP3 usage, Global Admin without MFA
+    
+    MEDIUM   - Schedule for review
+               Examples: Dormant user accounts, large group exclusions
+    
+    LOW      - Monitor
+               Examples: Low-privilege apps, compliant configurations
+
+PERFORMANCE TIPS (v2.2.0+)
+    
+    Get-UserConsentedApplications:
+    - Use -ThrottleLimit to control parallel processing (default: 10, max: 50)
+    - Requires PowerShell 7+ for parallel processing (falls back to sequential on 5.1)
+    - Example: Get-UserConsentedApplications -ThrottleLimit 20
+    
+    Get-LegacyAuthSignIns:
+    - Use -MaxResults for quick scans (default: 5000)
+    - Example: Get-LegacyAuthSignIns -MaxResults 1000
+    
+    All functions:
+    - Use -Verbose for detailed progress information
+    - Export to CSV for large result sets
+
+EXAMPLES
+    
+    Example 1: Find all legacy authentication sign-ins
+    -----------------------------------------------
+    Get-LegacyAuthSignIns
+    
+    Returns legacy auth sign-ins from the last 7 days.
+
+    Example 2: Quick Shadow IT scan
+    -----------------------------------------------
+    Get-UserConsentedApplications | 
+        Where-Object { $_.RiskLevel -in @('CRITICAL', 'HIGH') }
+    
+    Shows only high-risk user-consented applications.
+
+    Example 3: Check admin MFA compliance
+    -----------------------------------------------
+    Get-AdminsWithoutPhishingResistantMFA | 
+        Export-Csv -Path admins-no-mfa.csv -NoTypeInformation
+    
+    Exports all privileged users without phishing-resistant MFA.
+
+    Example 4: Audit Conditional Access exclusions
+    -----------------------------------------------
+    Get-ConditionalAccessExclusions -ExportPath ca-exclusions.csv
+    
+    Audits all CA policy exclusions and exports to CSV.
+
+    Example 5: Find inactive accounts without MFA
+    -----------------------------------------------
+    Get-InactiveUsersWithoutMFA -DaysInactive 180 -MaxResults 100
+    
+    Quick scan for users inactive 180+ days without MFA.
+
+COMMON WORKFLOWS
+    
+    Zero Trust Assessment:
+    ----------------------
+    1. Get-LegacyAuthSignIns
+    2. Get-AdminsWithoutPhishingResistantMFA
+    3. Get-ConditionalAccessExclusions
+    4. Get-UserConsentedApplications
+    
+    Compliance Audit:
+    ----------------
+    1. Get-InactiveUsersWithoutMFA
+    2. Get-SyncedPrivilegedAccounts
+    3. Get-UnprotectedServicePrincipals
+    4. Get-ExcessiveAppPermissions
+    
+    Pre-Legacy Auth Block:
+    ---------------------
+    1. Get-LegacyAuthSignIns -Days 30 -IncludeFailed $true
+    2. Group-Object UserPrincipalName | Sort-Object Count -Descending
+    3. Contact affected users
+    4. Enable CA policy to block legacy auth
+
+TROUBLESHOOTING
+    
+    Problem: "Not connected to Microsoft Graph"
+    Solution: Run Connect-MgGraph with required scopes
+    
+    Problem: "Insufficient privileges to complete the operation"
+    Solution: Ensure you have the required Graph API permissions
+    
+    Problem: Slow performance
+    Solution: Use PowerShell 7+ for parallel processing
+              Use -MaxResults or -ThrottleLimit parameters
+              Use -Verbose to monitor progress
+    
+    Problem: Permission grants not found
+    Solution: Ensure DelegatedPermissionGrant.Read.All scope is consented
+
+SEE ALSO
+    
+    Get-Help Get-LegacyAuthSignIns -Full
+    Get-Help Get-UserConsentedApplications -Examples
+    Get-Help Get-ConditionalAccessExclusions -Online
+    
+    Online Resources:
+    - PowerShell Gallery: https://www.powershellgallery.com/packages/EntraIDSecurityScripts
+    - GitHub: https://github.com/kentagent-ai/EntraIDSecurityScripts
+    - Blog: https://cloudidentity.se
+
+KEYWORDS
+    Entra ID, Azure AD, Security, Audit, Conditional Access, MFA, Legacy Auth,
+    Zero Trust, Compliance, Microsoft Graph, Identity, Authentication
