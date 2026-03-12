@@ -418,7 +418,7 @@ function Get-UserConsentedApplications {
         Write-Host "CRITICAL risk: $critical" -ForegroundColor $(if ($critical -gt 0) { 'Red' } else { 'Green' })
         Write-Host "HIGH risk: $high" -ForegroundColor $(if ($high -gt 0) { 'Red' } else { 'Yellow' })
         Write-Host "Dormant apps: $dormant" -ForegroundColor $(if ($dormant -gt 0) { 'Yellow' } else { 'Green' })
-        Write-Host "================================================`n" -ForegroundColor Yellow
+        Write-Host "================================================" -ForegroundColor Yellow
 
         # Export if requested
         if ($ExportPath) {

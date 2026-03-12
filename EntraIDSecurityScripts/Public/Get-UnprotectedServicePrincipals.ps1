@@ -277,7 +277,7 @@ function Get-UnprotectedServicePrincipals {
         Write-Host "`nBy Issue Type:" -ForegroundColor White
         Write-Host "  Expired credentials: $expired" -ForegroundColor Gray
         Write-Host "  No expiration set: $neverExpire" -ForegroundColor Gray
-        Write-Host "==========================================`n" -ForegroundColor Yellow
+        Write-Host "==========================================" -ForegroundColor Yellow
 
         # Export if requested
         if ($ExportPath) {

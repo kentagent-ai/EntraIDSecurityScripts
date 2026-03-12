@@ -182,7 +182,7 @@ function Get-ExcessiveAppPermissions {
         Write-Host "HIGH risk (>3 perms): $high" -ForegroundColor $(if ($high -gt 0) { 'Red' } else { 'Green' })
         Write-Host "MEDIUM risk (2-3 perms): $medium" -ForegroundColor $(if ($medium -gt 0) { 'Yellow' } else { 'Green' })
         Write-Host "LOW risk (1 perm): $low" -ForegroundColor $(if ($low -gt 0) { 'Yellow' } else { 'Green' })
-        Write-Host "=================================`n" -ForegroundColor Yellow
+        Write-Host "=================================" -ForegroundColor Yellow
 
         # Export if requested
         if ($ExportPath) {

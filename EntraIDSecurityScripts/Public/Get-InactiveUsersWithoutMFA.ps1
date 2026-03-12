@@ -226,7 +226,7 @@ function Get-InactiveUsersWithoutMFA {
         Write-Host "Total inactive users without MFA: $($results.Count)" -ForegroundColor White
         Write-Host "HIGH risk (>180 days): $high" -ForegroundColor $(if ($high -gt 0) { 'Red' } else { 'Green' })
         Write-Host "Never signed in: $neverSignedIn" -ForegroundColor $(if ($neverSignedIn -gt 0) { 'Yellow' } else { 'Green' })
-        Write-Host "==================================`n" -ForegroundColor Yellow
+        Write-Host "==================================" -ForegroundColor Yellow
 
         # Export if requested
         if ($ExportPath) {

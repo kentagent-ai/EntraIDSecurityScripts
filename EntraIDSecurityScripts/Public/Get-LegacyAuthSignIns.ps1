@@ -267,21 +267,26 @@ function Get-LegacyAuthSignIns {
                 FailedCount        = ($results | Where-Object { $_.Status -eq 'Failed' }).Count
             }
 
-            Write-Host "`n=== Legacy Authentication Summary ===" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "=== Legacy Authentication Summary ===" -ForegroundColor Yellow
             Write-Host "Total sign-ins: $($summary.TotalLegacySignIns)" -ForegroundColor White
             Write-Host "Unique users: $($summary.UniqueUsers)" -ForegroundColor White
             Write-Host "Successful: $($summary.SuccessfulCount)" -ForegroundColor $(if ($summary.SuccessfulCount -gt 0) { 'Yellow' } else { 'Green' })
             Write-Host "Failed: $($summary.FailedCount)" -ForegroundColor Gray
             Write-Host "High risk sign-ins: $($summary.HighRiskCount)" -ForegroundColor $(if ($summary.HighRiskCount -gt 0) { 'Red' } else { 'Green' })
-            Write-Host "`nBy Protocol:" -ForegroundColor White
+            Write-Host ""
+            Write-Host "By Protocol:" -ForegroundColor White
             $summary.ByProtocol | ForEach-Object {
                 Write-Host "  $($_.Name): $($_.Count)" -ForegroundColor Gray
             }
-            Write-Host "======================================`n" -ForegroundColor Yellow
+            Write-Host "======================================" -ForegroundColor Yellow
+            Write-Host ""
         }
         else {
-            Write-Host "`n✓ No legacy authentication sign-ins found!" -ForegroundColor Green
-            Write-Host "Your environment is clean - all users are using modern authentication.`n" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "[OK] No legacy authentication sign-ins found!" -ForegroundColor Green
+            Write-Host "Your environment is clean - all users are using modern authentication." -ForegroundColor Green
+            Write-Host ""
         }
 
         return $results

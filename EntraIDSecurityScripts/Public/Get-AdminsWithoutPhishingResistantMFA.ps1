@@ -244,7 +244,7 @@ function Get-AdminsWithoutPhishingResistantMFA {
         if ($critical.Count -gt 0) {
             Write-Host "CRITICAL (Global Admins at risk): $($critical.Count)" -ForegroundColor Red
         }
-        Write-Host "==========================================`n" -ForegroundColor Yellow
+        Write-Host "==========================================" -ForegroundColor Yellow
 
         # Export if path specified
         if ($ExportPath) {

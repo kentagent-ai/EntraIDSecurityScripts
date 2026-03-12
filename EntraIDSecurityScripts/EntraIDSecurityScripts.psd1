@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.3.1'
+    ModuleVersion     = '2.3.2'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -71,6 +71,15 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.3.2 - March 2026
+
+BUG FIX - PowerShell 5.1 string parsing
+
+### Fixed:
+- Removed backtick-n escape sequences that caused parsing errors in PS 5.1
+- Replaced with separate Write-Host calls for newlines
+- All functions now load correctly on PowerShell 5.1
+
 ## Version 2.3.1 - March 2026
 
 BUG FIX - PowerShell 5.1 compatibility
