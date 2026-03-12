@@ -141,11 +141,18 @@ function Get-AdminsWithoutPhishingResistantMFA {
                 $processedUsers[$member.Id] = $true
 
                 # Get user details
+                $user = $null
                 try {
                     $user = Get-MgUser -UserId $member.Id -Property Id, DisplayName, UserPrincipalName, AccountEnabled -ErrorAction Stop
                 }
                 catch {
-                    Write-Warning "Failed to get user details for $($member.Id): $_"
+                    # User may be deleted but role assignment remains (orphaned)
+                    Write-Verbose "Skipping orphaned/deleted user: $($member.Id)"
+                    continue
+                }
+                
+                if ($null -eq $user) {
+                    Write-Verbose "Skipping - user not found: $($member.Id)"
                     continue
                 }
 

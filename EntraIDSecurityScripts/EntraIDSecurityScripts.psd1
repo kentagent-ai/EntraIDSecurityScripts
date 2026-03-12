@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.3.5'
+    ModuleVersion     = '2.3.6'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -71,6 +71,15 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.3.6 - March 2026
+
+IMPROVEMENT - Suppress orphaned user warnings
+
+### Fixed:
+- Get-AdminsWithoutPhishingResistantMFA: Silently skips deleted/orphaned users
+- Changed verbose 404 warnings to Write-Verbose
+- Orphaned role assignments (deleted users) no longer spam warnings
+
 ## Version 2.3.5 - March 2026
 
 BUG FIX - Get-ConditionalAccessExclusions ValidateSet error
