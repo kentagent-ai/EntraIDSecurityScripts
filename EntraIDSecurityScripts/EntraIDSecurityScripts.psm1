@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+#Requires -Version 5.1
 # Note: Microsoft.Graph.Authentication module is required for Graph API calls
 
 <#

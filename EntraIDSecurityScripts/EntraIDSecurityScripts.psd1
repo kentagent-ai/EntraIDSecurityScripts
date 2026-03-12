@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.3.0'
+    ModuleVersion     = '2.3.1'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -71,6 +71,14 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.3.1 - March 2026
+
+BUG FIX - PowerShell 5.1 compatibility
+
+### Fixed:
+- Removed #Requires -Version 7.0 from .psm1 file
+- Module now properly loads on PowerShell 5.1
+
 ## Version 2.3.0 - March 2026
 
 NEW FEATURE - Mail.Send Application Audit
