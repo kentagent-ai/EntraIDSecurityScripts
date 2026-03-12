@@ -66,10 +66,11 @@ function Get-MailSendAppAudit {
         # Get Microsoft Graph service principal
         $graphSp = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'" -Property Id, AppRoles -ErrorAction Stop
 
-        # Find Mail.Send role IDs
+        # Find Mail.Send role IDs (only Send permissions, not ReadWrite)
+        # Mail.ReadWrite allows reading/modifying mail but NOT sending
         $mailSendRoleIds = New-Object System.Collections.ArrayList
         foreach ($role in $graphSp.AppRoles) {
-            if ($role.Value -match '^Mail\.(Send|ReadWrite)') {
+            if ($role.Value -eq 'Mail.Send') {
                 [void]$mailSendRoleIds.Add($role.Id)
                 Write-Host "  Looking for: $($role.Value)" -ForegroundColor Gray
             }

@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.3.3'
+    ModuleVersion     = '2.3.4'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -71,6 +71,15 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.3.4 - March 2026
+
+BUG FIX - Get-MailSendAppAudit permission filter
+
+### Fixed:
+- Get-MailSendAppAudit now only looks for Mail.Send permission
+- Removed Mail.ReadWrite/Mail.ReadWrite.All from search
+- Mail.ReadWrite allows reading/modifying mail but NOT sending
+
 ## Version 2.3.3 - March 2026
 
 DOCUMENTATION UPDATE
