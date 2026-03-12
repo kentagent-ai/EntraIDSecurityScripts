@@ -30,6 +30,7 @@
         'Get-SyncedPrivilegedAccounts'
         'Get-UnprotectedServicePrincipals'
         'Get-MailSendAppAudit'
+        'Get-DormantEnterpriseApplications'
         'Test-EntraIDSecurityModuleConnection'
     )
     

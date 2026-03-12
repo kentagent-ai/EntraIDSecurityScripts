@@ -11,11 +11,17 @@
     Automatically excludes Microsoft first-party applications and Microsoft-managed 
     platform certificates where credentials are managed by Microsoft.
 
+    Can optionally remove expired credentials with -RemoveExpiredCredentials.
+
 .PARAMETER IncludeMicrosoftApps
     Include Microsoft first-party applications in the audit. Default is $false.
 
 .PARAMETER IncludeMicrosoftCerts
     Include Microsoft platform certificates (*.microsoft.com, *.azure.com, etc.). Default is $false.
+
+.PARAMETER RemoveExpiredCredentials
+    Remove expired credentials. Use with -WhatIf to preview changes.
+    Requires Application.ReadWrite.All permission.
 
 .PARAMETER ExportPath
     Optional path to export results to CSV.
@@ -26,28 +32,41 @@
     Returns all third-party service principals with credential issues.
 
 .EXAMPLE
-    Get-UnprotectedServicePrincipals -IncludeMicrosoftApps $true -IncludeMicrosoftCerts $true
+    Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -WhatIf
 
-    Includes all Microsoft-managed apps and certificates (for troubleshooting).
+    Shows what expired credentials WOULD be removed without actually removing them.
+
+.EXAMPLE
+    Get-UnprotectedServicePrincipals -RemoveExpiredCredentials
+
+    Actually removes expired credentials (prompts for confirmation).
+
+.EXAMPLE
+    Get-UnprotectedServicePrincipals | Where-Object { $_.RiskLevel -eq 'HIGH' }
+
+    Shows only high-risk credential issues.
 
 .NOTES
     Author: Kent Agent (kentagent-ai)
     Created: 2026-03-11
-    Updated: 2026-03-12 (v2.2.3 - improved Microsoft platform certificate detection)
+    Updated: 2026-03-12 (Added -RemoveExpiredCredentials with WhatIf support)
     Requires: Microsoft.Graph PowerShell module
-    Permissions: Application.Read.All
+    Permissions: Application.Read.All (read), Application.ReadWrite.All (remove)
 
 .LINK
     https://github.com/kentagent-ai/EntraIDSecurityScripts
 #>
 function Get-UnprotectedServicePrincipals {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param(
         [Parameter(Mandatory = $false)]
         [bool]$IncludeMicrosoftApps = $false,
 
         [Parameter(Mandatory = $false)]
         [bool]$IncludeMicrosoftCerts = $false,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$RemoveExpiredCredentials,
 
         [Parameter(Mandatory = $false)]
         [string]$ExportPath
@@ -58,6 +77,13 @@ function Get-UnprotectedServicePrincipals {
         $context = Get-MgContext
         if (-not $context) {
             throw "Not connected to Microsoft Graph. Run: Connect-MgGraph -Scopes 'Application.Read.All'"
+        }
+
+        # Check for write permissions if removing credentials
+        if ($RemoveExpiredCredentials) {
+            if ('Application.ReadWrite.All' -notin $context.Scopes) {
+                Write-Warning "Missing Application.ReadWrite.All scope. Reconnect with: Connect-MgGraph -Scopes 'Application.ReadWrite.All'"
+            }
         }
 
         # Microsoft's tenant ID (for first-party apps)
@@ -79,64 +105,39 @@ function Get-UnprotectedServicePrincipals {
             '\.microsoftonline\.com$'
             '\.powerapps\.com$'
             '\.powerva\.microsoft\.com$'
-            '\.cloudapp\.azure\.com$'
-            '\.trafficmanager\.net$'
-            '\.servicebus\.windows\.net$'
-            '\.blob\.core\.windows\.net$'
-            '\.table\.core\.windows\.net$'
-            '\.queue\.core\.windows\.net$'
-            '\.azurewebsites\.net$'
-            '\.azurecr\.io$'
-            '\.cognitiveservices\.azure\.com$'
-            '^CN=Microsoft'
-            '^CN=Azure'
+            '^CN=Microsoft '
+            '^CN=Azure '
+            '^MS-Organization-'
         )
-        
-        # Combine into single regex for efficiency
-        $microsoftCertRegex = ($microsoftCertPatterns -join '|')
-        
-        $results = [System.Collections.Generic.List[PSCustomObject]]::new()
+        $microsoftCertRegex = $microsoftCertPatterns -join '|'
+
+        $results = New-Object System.Collections.ArrayList
+        $removedCount = 0
+        $skippedCount = 0
     }
 
     process {
         Write-Verbose "Retrieving service principals..."
         
         try {
-            # Get all service principals with only needed properties
-            $sps = Get-MgServicePrincipal -All -Property Id, DisplayName, AppId, AppOwnerOrganizationId, KeyCredentials, PasswordCredentials, ServicePrincipalType -ErrorAction Stop
+            $servicePrincipals = Get-MgServicePrincipal -All -Property Id, AppId, DisplayName, AppOwnerOrganizationId, KeyCredentials, PasswordCredentials -ErrorAction Stop
         }
         catch {
             throw "Failed to retrieve service principals: $_"
         }
 
-        Write-Verbose "Found $($sps.Count) service principals"
-        Write-Host "Analyzing credentials for $($sps.Count) service principals..." -ForegroundColor Cyan
-
-        $processedCount = 0
-        $skippedMicrosoftApps = 0
+        Write-Host "Processing $($servicePrincipals.Count) service principals..." -ForegroundColor Cyan
         $skippedMicrosoftCerts = 0
 
-        foreach ($sp in $sps) {
-            $processedCount++
-            if ($processedCount % 100 -eq 0) {
-                Write-Progress -Activity "Analyzing service principals" -Status "$processedCount of $($sps.Count)" -PercentComplete (($processedCount / $sps.Count) * 100)
-            }
-
-            # Filter Microsoft first-party apps unless explicitly requested
+        foreach ($sp in $servicePrincipals) {
+            # Check if Microsoft first-party app
             $isMicrosoftApp = $sp.AppOwnerOrganizationId -eq $microsoftTenantId
+
+            # Skip Microsoft apps unless explicitly requested
             if ($isMicrosoftApp -and -not $IncludeMicrosoftApps) {
-                $skippedMicrosoftApps++
-                Write-Verbose "Skipping Microsoft app: $($sp.DisplayName)"
                 continue
             }
 
-            # Skip managed identities (they don't have user-manageable credentials)
-            if ($sp.ServicePrincipalType -eq 'ManagedIdentity') {
-                Write-Verbose "Skipping managed identity: $($sp.DisplayName)"
-                continue
-            }
-
-            # Combine all credentials
             $allCredentials = @()
             $allCredentials += $sp.KeyCredentials
             $allCredentials += $sp.PasswordCredentials
@@ -186,7 +187,7 @@ function Get-UnprotectedServicePrincipals {
                         'LOW'  # Recently expired (might be in rotation)
                     }
 
-                    $results.Add([PSCustomObject]@{
+                    $resultObj = [PSCustomObject]@{
                         DisplayName        = $sp.DisplayName
                         AppId              = $sp.AppId
                         ServicePrincipalId = $sp.Id
@@ -205,12 +206,45 @@ function Get-UnprotectedServicePrincipals {
                         } else {
                             "Remove expired $credentialType (expired $daysExpired days ago)"
                         }
-                    })
+                        Removed            = $false
+                    }
+
+                    # Remove expired credential if requested
+                    if ($RemoveExpiredCredentials -and -not $isMicrosoftApp -and -not $isMicrosoftCert) {
+                        $target = "$credentialType '$credentialName' from $($sp.DisplayName)"
+                        
+                        if ($PSCmdlet.ShouldProcess($target, "Remove expired credential")) {
+                            try {
+                                # Need to get the Application object to remove credentials
+                                $app = Get-MgApplication -Filter "appId eq '$($sp.AppId)'" -ErrorAction SilentlyContinue
+                                
+                                if ($app) {
+                                    if ($credentialType -eq 'Secret') {
+                                        Remove-MgApplicationPassword -ApplicationId $app.Id -KeyId $cred.KeyId -ErrorAction Stop
+                                    } else {
+                                        Remove-MgApplicationKey -ApplicationId $app.Id -KeyId $cred.KeyId -ErrorAction Stop
+                                    }
+                                    $resultObj.Removed = $true
+                                    $removedCount++
+                                    Write-Host "  [REMOVED] $target" -ForegroundColor Green
+                                } else {
+                                    Write-Warning "Cannot find application for $($sp.DisplayName) - may be external/enterprise app only"
+                                    $skippedCount++
+                                }
+                            }
+                            catch {
+                                Write-Warning "Failed to remove $target : $_"
+                                $skippedCount++
+                            }
+                        }
+                    }
+
+                    [void]$results.Add($resultObj)
                 }
                 elseif ($neverExpires) {
                     $neverExpireCount++
                     
-                    $results.Add([PSCustomObject]@{
+                    [void]$results.Add([PSCustomObject]@{
                         DisplayName        = $sp.DisplayName
                         AppId              = $sp.AppId
                         ServicePrincipalId = $sp.Id
@@ -225,6 +259,7 @@ function Get-UnprotectedServicePrincipals {
                         Issue              = 'No Expiration'
                         RiskLevel          = 'HIGH'
                         Recommendation     = "Set expiration policy for $credentialType (recommended: 1-2 years for certificates, 6-12 months for secrets)"
+                        Removed            = $false
                     })
                 }
                 else {
@@ -235,61 +270,66 @@ function Get-UnprotectedServicePrincipals {
             # Flag service principals with excessive credential accumulation
             $totalCredentials = $allCredentials.Count
             if ($totalCredentials -gt 5) {
-                $results.Add([PSCustomObject]@{
+                [void]$results.Add([PSCustomObject]@{
                     DisplayName        = $sp.DisplayName
                     AppId              = $sp.AppId
                     ServicePrincipalId = $sp.Id
                     IsMicrosoftApp     = $isMicrosoftApp
                     IsMicrosoftCert    = $false
                     CredentialType     = 'Multiple'
-                    CredentialName     = "Total: $totalCredentials ($expiredCount expired, $activeCount active)"
+                    CredentialName     = $null
                     StartDate          = $null
                     ExpiryDate         = $null
                     DaysExpired        = $null
                     KeyId              = $null
                     Issue              = 'Excessive Credentials'
                     RiskLevel          = 'MEDIUM'
-                    Recommendation     = "Review and clean up unused credentials (has $totalCredentials total, $expiredCount expired)"
+                    Recommendation     = "Review and consolidate credentials (found $totalCredentials credentials, $expiredCount expired)"
+                    Removed            = $false
                 })
             }
         }
-
-        Write-Progress -Activity "Analyzing service principals" -Completed
     }
 
     end {
-        Write-Verbose "Found $($results.Count) credential issues"
-
-        # Summary
-        $high = ($results | Where-Object { $_.RiskLevel -eq 'HIGH' }).Count
-        $medium = ($results | Where-Object { $_.RiskLevel -eq 'MEDIUM' }).Count
-        $low = ($results | Where-Object { $_.RiskLevel -eq 'LOW' }).Count
-        $expired = ($results | Where-Object { $_.Issue -eq 'Expired Credential' }).Count
-        $neverExpire = ($results | Where-Object { $_.Issue -eq 'No Expiration' }).Count
-
-        Write-Host "`n=== Service Principal Credential Issues ===" -ForegroundColor Yellow
-        Write-Host "Total issues found: $($results.Count)" -ForegroundColor White
-        Write-Host "Skipped Microsoft apps: $skippedMicrosoftApps" -ForegroundColor Gray
-        Write-Host "Skipped Microsoft certs: $skippedMicrosoftCerts" -ForegroundColor Gray
-        Write-Host "HIGH risk: $high" -ForegroundColor $(if ($high -gt 0) { 'Red' } else { 'Green' })
-        Write-Host "MEDIUM risk: $medium" -ForegroundColor $(if ($medium -gt 0) { 'Yellow' } else { 'Green' })
-        Write-Host "LOW risk: $low" -ForegroundColor $(if ($low -gt 0) { 'Yellow' } else { 'Green' })
-        Write-Host "`nBy Issue Type:" -ForegroundColor White
-        Write-Host "  Expired credentials: $expired" -ForegroundColor Gray
-        Write-Host "  No expiration set: $neverExpire" -ForegroundColor Gray
-        Write-Host "==========================================" -ForegroundColor Yellow
-
-        # Export if requested
-        if ($ExportPath) {
-            try {
-                $results | Export-Csv -Path $ExportPath -NoTypeInformation -Encoding UTF8
-                Write-Host "Results exported to: $ExportPath" -ForegroundColor Green
-            }
-            catch {
-                Write-Error "Failed to export results: $_"
-            }
+        Write-Host ""
+        
+        if ($skippedMicrosoftCerts -gt 0) {
+            Write-Host "Skipped $skippedMicrosoftCerts Microsoft-managed certificates (use -IncludeMicrosoftCerts `$true to include)" -ForegroundColor Gray
         }
 
+        if ($results.Count -gt 0) {
+            $expiredCreds = ($results | Where-Object { $_.Issue -eq 'Expired Credential' }).Count
+            $noExpiryCreds = ($results | Where-Object { $_.Issue -eq 'No Expiration' }).Count
+            $excessiveCreds = ($results | Where-Object { $_.Issue -eq 'Excessive Credentials' }).Count
+            $highRisk = ($results | Where-Object { $_.RiskLevel -eq 'HIGH' }).Count
+
+            Write-Host "=== Credential Issues Summary ===" -ForegroundColor Yellow
+            Write-Host "Total issues: $($results.Count)" -ForegroundColor White
+            Write-Host "Expired credentials: $expiredCreds" -ForegroundColor $(if ($expiredCreds -gt 0) { 'Red' } else { 'Green' })
+            Write-Host "No expiration set: $noExpiryCreds" -ForegroundColor $(if ($noExpiryCreds -gt 0) { 'Yellow' } else { 'Green' })
+            Write-Host "Excessive credentials: $excessiveCreds" -ForegroundColor $(if ($excessiveCreds -gt 0) { 'Yellow' } else { 'Green' })
+            Write-Host "High risk items: $highRisk" -ForegroundColor $(if ($highRisk -gt 0) { 'Red' } else { 'Green' })
+            
+            if ($RemoveExpiredCredentials) {
+                Write-Host ""
+                Write-Host "Removed: $removedCount | Skipped: $skippedCount" -ForegroundColor Cyan
+            }
+            
+            Write-Host "=================================" -ForegroundColor Yellow
+
+            # Export if requested
+            if ($ExportPath) {
+                $results | Export-Csv -Path $ExportPath -NoTypeInformation
+                Write-Host ""
+                Write-Host "Results exported to: $ExportPath" -ForegroundColor Green
+            }
+        }
+        else {
+            Write-Host "[OK] No credential issues found!" -ForegroundColor Green
+        }
+
+        Write-Host ""
         return $results
     }
 }
