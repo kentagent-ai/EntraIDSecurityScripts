@@ -1,0 +1,114 @@
+name: Publish to PowerShell Gallery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'EntraIDSecurityScripts/**'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need previous commit to compare versions
+
+      - name: Get module version
+        id: version
+        shell: pwsh
+        run: |
+          $manifest = Import-PowerShellDataFile -Path ./EntraIDSecurityScripts/EntraIDSecurityScripts.psd1
+          $version = $manifest.ModuleVersion
+          Write-Host "Module version: $version"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Check if version exists on PowerShell Gallery
+        id: check
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $moduleName = "EntraIDSecurityScripts"
+          
+          try {
+            $existing = Find-Module -Name $moduleName -RequiredVersion $version -ErrorAction Stop
+            Write-Host "Version $version already exists on PowerShell Gallery"
+            "should_publish=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+          catch {
+            Write-Host "Version $version is new - will publish"
+            "should_publish=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
+      - name: Test module manifest
+        if: steps.check.outputs.should_publish == 'true'
+        shell: pwsh
+        run: |
+          $manifest = Test-ModuleManifest -Path ./EntraIDSecurityScripts/EntraIDSecurityScripts.psd1
+          Write-Host "Module: $($manifest.Name)"
+          Write-Host "Version: $($manifest.Version)"
+          Write-Host "Functions: $($manifest.ExportedFunctions.Count)"
+          
+          if ($manifest.ExportedFunctions.Count -eq 0) {
+            throw "No functions exported - check manifest"
+          }
+
+      - name: Publish to PowerShell Gallery
+        if: steps.check.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          if (-not $env:PSGALLERY_API_KEY) {
+            throw "PSGALLERY_API_KEY secret not set"
+          }
+          
+          Write-Host "Publishing version ${{ steps.version.outputs.version }} to PowerShell Gallery..."
+          
+          Publish-Module -Path ./EntraIDSecurityScripts `
+            -NuGetApiKey $env:PSGALLERY_API_KEY `
+            -Verbose
+          
+          Write-Host "✓ Successfully published!"
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.should_publish == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            ## EntraIDSecurityScripts v${{ steps.version.outputs.version }}
+            
+            Published to PowerShell Gallery: https://www.powershellgallery.com/packages/EntraIDSecurityScripts/${{ steps.version.outputs.version }}
+            
+            ### Install
+            ```powershell
+            Install-Module -Name EntraIDSecurityScripts
+            ```
+            
+            ### Update
+            ```powershell
+            Update-Module -Name EntraIDSecurityScripts
+            ```
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: always()
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $published = "${{ steps.check.outputs.should_publish }}"
+          
+          if ($published -eq 'true') {
+            Write-Host "✓ Version $version published to PowerShell Gallery"
+            Write-Host "  https://www.powershellgallery.com/packages/EntraIDSecurityScripts/$version"
+          } else {
+            Write-Host "ℹ Version $version already exists - skipped publishing"
+          }
