@@ -11,7 +11,7 @@ LONG DESCRIPTION
     professionals, IT administrators, and compliance teams working with
     Microsoft Entra ID (formerly Azure AD).
 
-    The module provides nine specialized audit functions covering:
+    The module provides ten specialized audit functions covering:
     - Conditional Access policy exclusions
     - Legacy authentication sign-ins
     - MFA compliance for privileged users
@@ -20,6 +20,7 @@ LONG DESCRIPTION
     - Inactive user accounts without MFA
     - On-premises synced admin accounts
     - Unprotected service principals
+    - Mail.Send permission auditing for Application Access Policy scoping
 
 GETTING STARTED
     
@@ -88,6 +89,18 @@ AVAILABLE FUNCTIONS
         
         Example:
         Get-UnprotectedServicePrincipals
+
+    Get-MailSendAppAudit
+        Audits applications with Mail.Send permissions to determine if they
+        can be scoped using Application Access Policies. Excludes Microsoft
+        first-party apps and checks audit logs for actual send activity.
+        
+        Requires: Connect-IPPSSession (for audit log access)
+        
+        Example:
+        Connect-MgGraph -Scopes "Application.Read.All"
+        Connect-IPPSSession
+        Get-MailSendAppAudit -Days 30
 
     Test-EntraIDSecurityModuleConnection
         Verifies Microsoft Graph connection and required permissions.

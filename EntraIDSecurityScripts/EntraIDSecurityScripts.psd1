@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.3.2'
+    ModuleVersion     = '2.3.3'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -71,6 +71,16 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.3.3 - March 2026
+
+DOCUMENTATION UPDATE
+
+### Updated:
+- README.md with all 10 functions documented
+- Help file (about_EntraIDSecurityScripts) with Get-MailSendAppAudit
+- Corrected PowerShell version requirement to 5.1+
+- Added Get-MailSendAppAudit examples and usage
+
 ## Version 2.3.2 - March 2026
 
 BUG FIX - PowerShell 5.1 string parsing

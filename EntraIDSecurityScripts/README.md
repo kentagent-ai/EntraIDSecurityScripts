@@ -1,105 +1,80 @@
-# EntraIDSecurityScripts
+# 🔐 EntraID Security Scripts
 
-PowerShell module for auditing and securing Microsoft Entra ID (Azure AD). Built by security professionals for security professionals.
+[![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/EntraIDSecurityScripts?label=PowerShell%20Gallery&logo=powershell)](https://www.powershellgallery.com/packages/EntraIDSecurityScripts)
+[![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/EntraIDSecurityScripts)](https://www.powershellgallery.com/packages/EntraIDSecurityScripts)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 
-[![PowerShell Gallery](https://img.shields.io/powershellgallery/v/EntraIDSecurityScripts)](https://www.powershellgallery.com/packages/EntraIDSecurityScripts)
-[![Downloads](https://img.shields.io/powershellgallery/dt/EntraIDSecurityScripts)](https://www.powershellgallery.com/packages/EntraIDSecurityScripts)
-[![License](https://img.shields.io/github/license/kentagent-ai/EntraIDSecurityScripts)](LICENSE)
+PowerShell module for auditing and securing Microsoft Entra ID (Azure AD). Includes **10 comprehensive security audit functions** with risk scoring, recommendations, and CSV export.
 
-## 🚀 Installation
+---
+
+## 📦 Installation
 
 ```powershell
 # Install from PowerShell Gallery
 Install-Module -Name EntraIDSecurityScripts -Scope CurrentUser
 
+# Update to latest version
+Update-Module -Name EntraIDSecurityScripts
+```
+
+---
+
+## 🚀 Quick Start
+
+```powershell
 # Import the module
 Import-Module EntraIDSecurityScripts
 
-# Connect to Microsoft Graph (required)
-Connect-MgGraph -Scopes 'Directory.Read.All', 'AuditLog.Read.All', 'Policy.Read.All'
+# Connect to Microsoft Graph with required scopes
+Connect-MgGraph -Scopes @(
+    'Policy.Read.All'
+    'Directory.Read.All'
+    'AuditLog.Read.All'
+    'RoleManagement.Read.Directory'
+    'UserAuthenticationMethod.Read.All'
+    'GroupMember.Read.All'
+    'Application.Read.All'
+    'DelegatedPermissionGrant.Read.All'
+)
+
+# Verify connection
+Test-EntraIDSecurityModuleConnection
 ```
 
-## 📋 Features
+---
 
-### Conditional Access Auditing
-- **Get-ConditionalAccessExclusions** - Find all exclusions in CA policies
-- Identifies high-risk exclusions (large groups, privileged users)
-- Resolves GUIDs to display names automatically
+## 📋 Functions Overview
 
-### Legacy Authentication Detection
-- **Get-LegacyAuthSignIns** - Find sign-ins using legacy protocols (IMAP, POP3, SMTP)
-- Supports both interactive and non-interactive sign-ins
-- **v2.2.0: 3-5x faster** with smart pagination
+| Function | Description | Risk Focus |
+|----------|-------------|------------|
+| **Conditional Access** | | |
+| `Get-ConditionalAccessExclusions` | Audit CA policy exclusions (users, groups, roles) | Policy gaps |
+| **Authentication & Identity** | | |
+| `Get-LegacyAuthSignIns` | Find legacy auth sign-ins (IMAP, POP3, SMTP) | Auth bypass |
+| `Get-AdminsWithoutPhishingResistantMFA` | Privileged users without FIDO2/WHfB MFA | Admin security |
+| `Get-InactiveUsersWithoutMFA` | Dormant accounts without MFA | Account hygiene |
+| `Get-SyncedPrivilegedAccounts` | On-prem synced admin accounts | Hybrid attack path |
+| **Applications & Permissions** | | |
+| `Get-UserConsentedApplications` | "Shadow IT" - user-consented apps | Unauthorized apps |
+| `Get-ExcessiveAppPermissions` | Apps with overprivileged Graph permissions | Least privilege |
+| `Get-UnprotectedServicePrincipals` | Service principals with credential issues | App security |
+| `Get-MailSendAppAudit` | **NEW** Apps with Mail.Send for scoping | Mail security |
+| **Utility** | | |
+| `Test-EntraIDSecurityModuleConnection` | Verify Graph connection and scopes | - |
 
-### MFA & Authentication
-- **Get-AdminsWithoutPhishingResistantMFA** - Find privileged users without FIDO2/WHfB
-- **Get-InactiveUsersWithoutMFA** - Dormant accounts without MFA enabled
+---
 
-### Application Security
-- **Get-UserConsentedApplications** - Discover "Shadow IT" via user app consents
-- **v2.2.0: 5-10x faster** with parallel processing and batched lookups
-- **Get-ExcessiveAppPermissions** - Audit overprivileged Graph API permissions
-- **Get-MailSendAppAudit** - Audit apps with Mail.Send permissions for scoping
+## 🆕 New in v2.3.x
 
-### Identity Hygiene
-- **Get-SyncedPrivilegedAccounts** - Find on-prem synced admin accounts (cloud-only recommended)
-- **Get-UnprotectedServicePrincipals** - Service principals with credential issues
+### Get-MailSendAppAudit
+Audit applications with Mail.Send permissions to determine if they can be scoped using Application Access Policies.
 
-### Utilities
-- **Test-EntraIDSecurityModuleConnection** - Verify Graph connection and permissions
-
-## 🎯 Quick Start Examples
-
-### Check for legacy authentication
-```powershell
-# Last 7 days (default)
-Get-LegacyAuthSignIns
-
-# Last 30 days with failed attempts
-Get-LegacyAuthSignIns -Days 30 -IncludeFailed $true
-
-# Export to CSV
-Get-LegacyAuthSignIns | Export-Csv -Path legacy-auth.csv -NoTypeInformation
-```
-
-### Audit Conditional Access exclusions
-```powershell
-# Get all exclusions
-Get-ConditionalAccessExclusions
-
-# Show only high-risk exclusions
-Get-ConditionalAccessExclusions | Where-Object { $_.RiskLevel -eq 'HIGH' }
-
-# Export to CSV
-Get-ConditionalAccessExclusions -ExportPath ca-exclusions.csv
-```
-
-### Find Shadow IT (user-consented apps)
-```powershell
-# Scan for user consents
-Get-UserConsentedApplications
-
-# Show only critical/high risk apps
-Get-UserConsentedApplications | Where-Object { $_.RiskLevel -in @('CRITICAL', 'HIGH') }
-
-# Include Microsoft apps
-Get-UserConsentedApplications -IncludeMicrosoftApps $true
-```
-
-### Check admin MFA status
-```powershell
-# Find admins without phishing-resistant MFA
-Get-AdminsWithoutPhishingResistantMFA
-
-# Show only Global Admins
-Get-AdminsWithoutPhishingResistantMFA | Where-Object { $_.RoleName -eq 'Global Administrator' }
-```
-
-### Audit Mail.Send app permissions (v2.3.0)
 ```powershell
 # Connect to both services
 Connect-MgGraph -Scopes "Application.Read.All"
-Connect-IPPSSession
+Connect-IPPSSession  # For audit logs
 
 # Find apps with Mail.Send and check their usage
 Get-MailSendAppAudit -Days 30
@@ -108,141 +83,145 @@ Get-MailSendAppAudit -Days 30
 Get-MailSendAppAudit | Where-Object { $_.CanScope } | Export-Csv apps-to-scope.csv
 ```
 
-### Find inactive users without MFA
-```powershell
-# Default: 90+ days inactive
-Get-InactiveUsersWithoutMFA
-
-# Custom inactivity threshold
-Get-InactiveUsersWithoutMFA -DaysInactive 180
-
-# Quick scan (first 500 users)
-Get-InactiveUsersWithoutMFA -MaxResults 500
-```
-
-## 📖 Getting Help
-
-All functions have detailed help documentation:
-
-```powershell
-# List all available commands
-Get-Command -Module EntraIDSecurityScripts
-
-# Get detailed help for a function
-Get-Help Get-LegacyAuthSignIns -Full
-
-# See examples
-Get-Help Get-UserConsentedApplications -Examples
-
-# View online help
-Get-Help Get-ConditionalAccessExclusions -Online
-```
-
-## 🔐 Required Permissions
-
-Connect with the following Graph API permissions:
-
-```powershell
-Connect-MgGraph -Scopes @(
-    'Directory.Read.All'              # Read users, groups, roles
-    'AuditLog.Read.All'               # Read sign-in logs
-    'Policy.Read.All'                 # Read Conditional Access policies
-    'Application.Read.All'            # Read app registrations
-    'DelegatedPermissionGrant.Read.All'  # Read OAuth consents
-)
-```
-
-## ⚡ Performance (v2.2.0)
-
-Major performance improvements in v2.2.0:
-
-### Get-UserConsentedApplications
-- **5-10x faster** on large tenants
-- Parallel processing with `ForEach-Object -Parallel` (PowerShell 7+)
-- Batched user lookups (15 users per API call vs 1 per user)
-- Property selection reduces payload size
-- Progress tracking for long operations
-
-```powershell
-# Control parallelism
-Get-UserConsentedApplications -ThrottleLimit 20  # Default: 10
-```
-
-### Get-LegacyAuthSignIns
-- **3-5x faster** with lower memory usage
-- Combined queries with smart pagination
-- Server-side property selection
-- Progress tracking
-
-```powershell
-# Quick scan mode
-Get-LegacyAuthSignIns -MaxResults 1000  # Default: 5000
-```
-
-## 📊 Risk Levels
-
-All audit functions provide risk assessments:
-
-- **CRITICAL** - Immediate action required (e.g., dormant app with high-risk permissions)
-- **HIGH** - Review urgently (e.g., IMAP/POP3/SMTP usage, admin without MFA)
-- **MEDIUM** - Schedule for review (e.g., dormant user accounts)
-- **LOW** - Monitor (e.g., low-privilege apps, compliant configs)
-
-## 🔄 Update & Changelog
-
-```powershell
-# Update to latest version
-Update-Module -Name EntraIDSecurityScripts
-
-# Check installed version
-Get-Module -Name EntraIDSecurityScripts -ListAvailable
-```
-
-### Version History
-
-**v2.2.0** (March 2026) - Performance Update
-- 5-10x faster `Get-UserConsentedApplications` with parallel processing
-- 3-5x faster `Get-LegacyAuthSignIns` with smart pagination
-- New parameters: `-ThrottleLimit`, `-MaxResults`
-
-**v2.1.0** (March 2026) - Optimization Update
-- API-level filtering for faster queries
-- Property selection to reduce payload sizes
-- MFA check optimizations
-
-**v2.0.0** (March 2026) - Major Feature Release
-- 5 new security audit functions
-- Risk scoring across all functions
-- Enhanced documentation
-
-**v1.0.x** (March 2026) - Initial Release
-- Core auditing functions
-- Conditional Access, legacy auth, MFA checks
-
-## 🤝 Contributing
-
-Contributions welcome! Please open issues or pull requests at:
-https://github.com/kentagent-ai/EntraIDSecurityScripts
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 👨‍💻 Author
-
-**Kent Agent** (kentagent-ai)  
-Cloud Identity AB - Microsoft Identity & Security Consulting
-
-## 🔗 Resources
-
-- [PowerShell Gallery](https://www.powershellgallery.com/packages/EntraIDSecurityScripts)
-- [GitHub Repository](https://github.com/kentagent-ai/EntraIDSecurityScripts)
-- [Cloud Identity Blog](https://cloudidentity.se)
-
-## ⚠️ Disclaimer
-
-This module is provided as-is for auditing and security assessment purposes. Always test in a non-production environment first. The authors are not responsible for any unintended consequences of using this module.
+**Features:**
+- Finds YOUR apps (excludes Microsoft first-party)
+- Checks audit logs for actual send activity
+- Shows which mailboxes each app sends from
+- Identifies apps that can be scoped
+- Generates `New-ApplicationAccessPolicy` commands
+- Flags unused apps (have permission but no sends)
 
 ---
 
-**Found a security issue?** Please report responsibly via GitHub issues or email.
+## 📖 Function Examples
+
+### Conditional Access Auditing
+
+```powershell
+# Get all exclusions
+Get-ConditionalAccessExclusions
+
+# Only enabled policies, export to CSV
+Get-ConditionalAccessExclusions -PolicyState Enabled -ExportPath "CA-exclusions.csv"
+
+# Find high-risk role exclusions
+Get-ConditionalAccessExclusions | Where-Object { $_.ExclusionType -eq 'Role' }
+```
+
+### Authentication Security
+
+```powershell
+# Find legacy auth sign-ins (last 30 days)
+Get-LegacyAuthSignIns -Days 30 -IncludeFailed $true
+
+# Check admin MFA compliance
+Get-AdminsWithoutPhishingResistantMFA
+
+# Find dormant accounts without MFA
+Get-InactiveUsersWithoutMFA -DaysInactive 90
+
+# Find synced admin accounts (hybrid risk)
+Get-SyncedPrivilegedAccounts
+```
+
+### Application Security
+
+```powershell
+# Discover Shadow IT (user-consented apps)
+Get-UserConsentedApplications | Where-Object { $_.RiskLevel -eq 'CRITICAL' }
+
+# Find overprivileged apps
+Get-ExcessiveAppPermissions | Where-Object { $_.PermissionCount -gt 3 }
+
+# Audit service principal credentials
+Get-UnprotectedServicePrincipals
+
+# Audit Mail.Send permissions for scoping
+Get-MailSendAppAudit -Days 30
+```
+
+---
+
+## 🎯 Quick Security Audit
+
+```powershell
+# High-risk findings only
+Get-ConditionalAccessExclusions | Where-Object { $_.ExclusionType -eq 'Role' }
+Get-AdminsWithoutPhishingResistantMFA | Where-Object { $_.RiskLevel -eq 'CRITICAL' }
+Get-UserConsentedApplications | Where-Object { $_.RiskLevel -eq 'CRITICAL' }
+Get-LegacyAuthSignIns | Where-Object { $_.RiskLevel -eq 'HIGH' }
+```
+
+---
+
+## 🔑 Required Permissions
+
+| Permission Scope | Purpose |
+|-----------------|---------|
+| `Policy.Read.All` | Read Conditional Access policies |
+| `Directory.Read.All` | Read directory objects |
+| `AuditLog.Read.All` | Read sign-in and audit logs |
+| `RoleManagement.Read.Directory` | Read role assignments |
+| `UserAuthenticationMethod.Read.All` | Read user MFA methods |
+| `GroupMember.Read.All` | Read group memberships |
+| `Application.Read.All` | Read app registrations |
+| `DelegatedPermissionGrant.Read.All` | Read OAuth2 grants |
+
+**For Get-MailSendAppAudit:** Also requires `View-Only Audit Logs` role in Microsoft Purview (Connect-IPPSSession).
+
+---
+
+## 🧪 Requirements
+
+- **PowerShell:** 5.1 or higher (7.x recommended for parallel processing)
+- **Modules:** Microsoft.Graph.Authentication, ExchangeOnlineManagement (for audit logs)
+- **Entra ID License:** P1/P2 for sign-in logs
+
+---
+
+## 📁 Module Structure
+
+```
+EntraIDSecurityScripts/
+├── EntraIDSecurityScripts.psd1       # Module manifest
+├── EntraIDSecurityScripts.psm1       # Root module loader
+├── Public/                            # Exported functions (10)
+│   ├── Get-ConditionalAccessExclusions.ps1
+│   ├── Get-LegacyAuthSignIns.ps1
+│   ├── Get-AdminsWithoutPhishingResistantMFA.ps1
+│   ├── Get-UserConsentedApplications.ps1
+│   ├── Get-InactiveUsersWithoutMFA.ps1
+│   ├── Get-ExcessiveAppPermissions.ps1
+│   ├── Get-SyncedPrivilegedAccounts.ps1
+│   ├── Get-UnprotectedServicePrincipals.ps1
+│   └── Get-MailSendAppAudit.ps1       # NEW
+├── Private/                           # Internal helpers
+│   └── Resolve-GraphObjectName.ps1
+└── en-US/                             # Help documentation
+    └── about_EntraIDSecurityScripts.help.txt
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please fork and submit a pull request.
+
+---
+
+## 📝 License
+
+MIT License - See [LICENSE](LICENSE)
+
+---
+
+## 👤 Author
+
+**Kent Agent** - AI assistant by [@jdenka](https://github.com/jdenka)
+
+- GitHub: [@kentagent-ai](https://github.com/kentagent-ai)
+- Website: [cloudidentity.se](https://cloudidentity.se)
+
+---
+
+*Stay safe out there!* 🔐
