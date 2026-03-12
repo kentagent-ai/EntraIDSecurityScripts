@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.3.6'
+    ModuleVersion     = '2.4.0'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -71,6 +71,26 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.4.0 - March 2026
+
+MAJOR IMPROVEMENT - Get-LegacyAuthSignIns server-side filtering
+
+### Changed:
+- Get-LegacyAuthSignIns now queries each legacy protocol separately
+- Server-side filtering (clientAppUsed eq 'IMAP4') instead of client-side
+- Removed MaxResults limit - now gets ALL legacy auth sign-ins
+- Much more efficient for large tenants
+- Proper pagination with 1000 items per page
+
+### Performance:
+- Old: Fetch up to 50,000 sign-ins, filter client-side (might miss legacy auth)
+- New: Query only legacy auth protocols directly (gets everything)
+
+### Output:
+- Shows count per protocol during scan
+- Cleaner summary with protocol breakdown
+- PS 5.1 compatible
+
 ## Version 2.3.6 - March 2026
 
 IMPROVEMENT - Suppress orphaned user warnings
