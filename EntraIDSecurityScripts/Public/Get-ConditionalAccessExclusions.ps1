@@ -155,7 +155,7 @@ function Get-ConditionalAccessExclusions {
 
         foreach ($policy in $policies) {
             $policyName = $policy.DisplayName
-            $policyState = $policy.State
+            $currentState = $policy.State
             $policyId = $policy.Id
 
             # Process excluded users
@@ -165,7 +165,7 @@ function Get-ConditionalAccessExclusions {
                     $results.Add([PSCustomObject]@{
                         PolicyName      = $policyName
                         PolicyId        = $policyId
-                        PolicyState     = $policyState
+                        PolicyState     = $currentState
                         ExclusionType   = 'User'
                         ExcludedId      = $userId
                         ExcludedName    = $displayName
@@ -197,7 +197,7 @@ function Get-ConditionalAccessExclusions {
                     $results.Add([PSCustomObject]@{
                         PolicyName      = $policyName
                         PolicyId        = $policyId
-                        PolicyState     = $policyState
+                        PolicyState     = $currentState
                         ExclusionType   = 'Group'
                         ExcludedId      = $groupId
                         ExcludedName    = $displayName
@@ -214,7 +214,7 @@ function Get-ConditionalAccessExclusions {
                     $results.Add([PSCustomObject]@{
                         PolicyName      = $policyName
                         PolicyId        = $policyId
-                        PolicyState     = $policyState
+                        PolicyState     = $currentState
                         ExclusionType   = 'Role'
                         ExcludedId      = $roleId
                         ExcludedName    = $displayName
@@ -229,7 +229,7 @@ function Get-ConditionalAccessExclusions {
                 $results.Add([PSCustomObject]@{
                     PolicyName      = $policyName
                     PolicyId        = $policyId
-                    PolicyState     = $policyState
+                    PolicyState     = $currentState
                     ExclusionType   = 'GuestsOrExternalUsers'
                     ExcludedId      = 'GuestsOrExternalUsers'
                     ExcludedName    = "Guest types: $($guestConfig.GuestOrExternalUserTypes -join ', ')"
@@ -244,7 +244,7 @@ function Get-ConditionalAccessExclusions {
                     $results.Add([PSCustomObject]@{
                         PolicyName      = $policyName
                         PolicyId        = $policyId
-                        PolicyState     = $policyState
+                        PolicyState     = $currentState
                         ExclusionType   = 'Application'
                         ExcludedId      = $appId
                         ExcludedName    = $displayName
