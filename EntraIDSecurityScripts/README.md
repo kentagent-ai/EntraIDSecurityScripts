@@ -57,6 +57,7 @@ Test-EntraIDSecurityModuleConnection
 | `Get-AdminsWithoutPhishingResistantMFA` | Privileged users without FIDO2/WHfB MFA | Admin security |
 | `Get-InactiveUsersWithoutMFA` | Dormant accounts without MFA | Account hygiene |
 | `Get-SyncedPrivilegedAccounts` | On-prem synced admin accounts | Hybrid attack path |
+| `Get-PIMRoleAssignments` | **NEW** Audit PIM role assignments & policies | Zero Trust / JIT |
 | **Applications & Permissions** | | |
 | `Get-UserConsentedApplications` | "Shadow IT" - user-consented apps | Unauthorized apps |
 | `Get-ExcessiveAppPermissions` | Apps with overprivileged Graph permissions | Least privilege |
@@ -69,6 +70,44 @@ Test-EntraIDSecurityModuleConnection
 ---
 
 ## 🆕 New Features
+
+### Get-PIMRoleAssignments (v2.5.0 - NEW!)
+Comprehensive Privileged Identity Management (PIM) auditing for Zero Trust compliance.
+
+```powershell
+# Audit all PIM assignments (eligible + active)
+Get-PIMRoleAssignments
+
+# Show only eligible (JIT) assignments
+Get-PIMRoleAssignments -ShowEligibleOnly $true
+
+# Find unused eligible assignments (never activated)
+Get-PIMRoleAssignments -IncludeInactive $true
+
+# Include activation history (last 30 days)
+Get-PIMRoleAssignments -ShowActivationHistory $true
+
+# Export to CSV for compliance reporting
+Get-PIMRoleAssignments -ExportPath "PIM_Audit.csv"
+```
+
+**Key Findings:**
+- ✅ Eligible (JIT) assignments = LOW risk (best practice)
+- ⚠️ Permanent admin assignments = CRITICAL/HIGH risk
+- 🔍 Unused eligible assignments = removal candidates
+- 🚨 Assignments without MFA/approval = policy gaps
+
+**Risk Scoring:**
+- **CRITICAL**: Permanent Global Admin / Privileged Role Admin
+- **HIGH**: Permanent admin roles without JIT
+- **MEDIUM**: Unused eligible assignments
+- **LOW**: Properly configured eligible assignments
+
+**Zero Trust Alignment:**
+- Identifies permanent vs eligible (JIT) assignments
+- Audits activation policies (MFA, approval, max duration)
+- Highlights policy gaps (missing MFA/approval requirements)
+- Tracks activation history to find unused access
 
 ### Get-DormantEnterpriseApplications (NEW)
 Find enterprise applications that haven't been used and may be candidates for cleanup.
