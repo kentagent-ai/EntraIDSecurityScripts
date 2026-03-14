@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 
-PowerShell module for auditing and securing Microsoft Entra ID (Azure AD). Includes **11 comprehensive security audit functions** with risk scoring, recommendations, and CSV export.
+PowerShell module for auditing and securing Microsoft Entra ID (Azure AD). Includes **12 comprehensive security audit functions** with risk scoring, recommendations, and CSV export.
 
 ---
 
@@ -57,6 +57,7 @@ Test-EntraIDSecurityModuleConnection
 | `Get-AdminsWithoutPhishingResistantMFA` | Privileged users without FIDO2/WHfB MFA | Admin security |
 | `Get-InactiveUsersWithoutMFA` | Dormant accounts without MFA | Account hygiene |
 | `Get-SyncedPrivilegedAccounts` | On-prem synced admin accounts | Hybrid attack path |
+| `Get-PIMRoleAssignments` | **NEW** Audit PIM role assignments & policies | Zero Trust / JIT |
 | **Applications & Permissions** | | |
 | `Get-UserConsentedApplications` | "Shadow IT" - user-consented apps | Unauthorized apps |
 | `Get-ExcessiveAppPermissions` | Apps with overprivileged Graph permissions | Least privilege |
@@ -69,6 +70,44 @@ Test-EntraIDSecurityModuleConnection
 ---
 
 ## 🆕 New Features
+
+### Get-PIMRoleAssignments (v2.5.0 - NEW!)
+Comprehensive Privileged Identity Management (PIM) auditing for Zero Trust compliance.
+
+```powershell
+# Audit all PIM assignments (eligible + active)
+Get-PIMRoleAssignments
+
+# Show only eligible (JIT) assignments
+Get-PIMRoleAssignments -ShowEligibleOnly $true
+
+# Find unused eligible assignments (never activated)
+Get-PIMRoleAssignments -IncludeInactive $true
+
+# Include activation history (last 30 days)
+Get-PIMRoleAssignments -ShowActivationHistory $true
+
+# Export to CSV for compliance reporting
+Get-PIMRoleAssignments -ExportPath "PIM_Audit.csv"
+```
+
+**Key Findings:**
+- ✅ Eligible (JIT) assignments = LOW risk (best practice)
+- ⚠️ Permanent admin assignments = CRITICAL/HIGH risk
+- 🔍 Unused eligible assignments = removal candidates
+- 🚨 Assignments without MFA/approval = policy gaps
+
+**Risk Scoring:**
+- **CRITICAL**: Permanent Global Admin / Privileged Role Admin
+- **HIGH**: Permanent admin roles without JIT
+- **MEDIUM**: Unused eligible assignments
+- **LOW**: Properly configured eligible assignments
+
+**Zero Trust Alignment:**
+- Identifies permanent vs eligible (JIT) assignments
+- Audits activation policies (MFA, approval, max duration)
+- Highlights policy gaps (missing MFA/approval requirements)
+- Tracks activation history to find unused access
 
 ### Get-DormantEnterpriseApplications (NEW)
 Find enterprise applications that haven't been used and may be candidates for cleanup.
@@ -169,6 +208,15 @@ Get-InactiveUsersWithoutMFA -DaysInactive 90
 
 # Find synced admin accounts (hybrid risk)
 Get-SyncedPrivilegedAccounts
+
+# Audit PIM role assignments (Zero Trust compliance)
+Get-PIMRoleAssignments
+
+# Find permanent admin assignments (should be JIT)
+Get-PIMRoleAssignments | Where-Object { $_.AssignmentType -eq 'Active Permanent' }
+
+# Find unused eligible assignments
+Get-PIMRoleAssignments -IncludeInactive $true
 ```
 
 ### Application Security
@@ -201,6 +249,7 @@ Get-MailSendAppAudit -Days 30
 # High-risk findings only
 Get-ConditionalAccessExclusions | Where-Object { $_.ExclusionType -eq 'Role' }
 Get-AdminsWithoutPhishingResistantMFA | Where-Object { $_.RiskLevel -eq 'CRITICAL' }
+Get-PIMRoleAssignments | Where-Object { $_.RiskLevel -in @('CRITICAL', 'HIGH') }
 Get-UserConsentedApplications | Where-Object { $_.RiskLevel -eq 'CRITICAL' }
 Get-LegacyAuthSignIns | Where-Object { $_.RiskLevel -eq 'HIGH' }
 Get-DormantEnterpriseApplications -DaysInactive 180 | Where-Object { $_.RiskLevel -eq 'HIGH' }
@@ -240,17 +289,18 @@ Get-DormantEnterpriseApplications -DaysInactive 180 | Where-Object { $_.RiskLeve
 EntraIDSecurityScripts/
 ├── EntraIDSecurityScripts.psd1       # Module manifest
 ├── EntraIDSecurityScripts.psm1       # Root module loader
-├── Public/                            # Exported functions (11)
+├── Public/                            # Exported functions (12)
 │   ├── Get-ConditionalAccessExclusions.ps1
 │   ├── Get-LegacyAuthSignIns.ps1
 │   ├── Get-AdminsWithoutPhishingResistantMFA.ps1
+│   ├── Get-PIMRoleAssignments.ps1    # NEW (v2.5.0)
 │   ├── Get-UserConsentedApplications.ps1
 │   ├── Get-InactiveUsersWithoutMFA.ps1
 │   ├── Get-ExcessiveAppPermissions.ps1
 │   ├── Get-SyncedPrivilegedAccounts.ps1
 │   ├── Get-UnprotectedServicePrincipals.ps1
 │   ├── Get-MailSendAppAudit.ps1
-│   ├── Get-DormantEnterpriseApplications.ps1  # NEW
+│   ├── Get-DormantEnterpriseApplications.ps1
 │   └── Test-EntraIDSecurityModuleConnection.ps1
 ├── Private/                           # Internal helpers
 │   └── Resolve-GraphObjectName.ps1

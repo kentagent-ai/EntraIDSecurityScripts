@@ -11,10 +11,11 @@ LONG DESCRIPTION
     professionals, IT administrators, and compliance teams working with
     Microsoft Entra ID (formerly Azure AD).
 
-    The module provides eleven specialized audit functions covering:
+    The module provides twelve specialized audit functions covering:
     - Conditional Access policy exclusions
     - Legacy authentication sign-ins
     - MFA compliance for privileged users
+    - PIM role assignments and Zero Trust compliance (NEW v2.5.0)
     - Shadow IT detection via user app consents
     - Excessive application permissions
     - Inactive user accounts without MFA
@@ -59,6 +60,17 @@ AVAILABLE FUNCTIONS
         
         Example:
         Get-AdminsWithoutPhishingResistantMFA
+
+    Get-PIMRoleAssignments (NEW v2.5.0)
+        Audits Privileged Identity Management (PIM) role assignments.
+        Identifies eligible (JIT) vs permanent assignments, policy gaps,
+        and unused eligible assignments. Critical for Zero Trust compliance.
+        
+        Example:
+        Get-PIMRoleAssignments
+        Get-PIMRoleAssignments -ShowEligibleOnly $true
+        Get-PIMRoleAssignments -IncludeInactive $true
+        Get-PIMRoleAssignments -ShowActivationHistory $true
 
     Get-UserConsentedApplications
         Discovers "Shadow IT" by auditing user-consented applications.
@@ -128,6 +140,7 @@ REQUIRED PERMISSIONS
     - Directory.Read.All              (Read users, groups, roles)
     - AuditLog.Read.All               (Read sign-in logs)
     - Policy.Read.All                 (Read Conditional Access policies)
+    - RoleManagement.Read.Directory   (Read PIM role assignments)
     - Application.Read.All            (Read app registrations)
     - Application.ReadWrite.All       (Remove credentials / disable apps)
     - DelegatedPermissionGrant.Read.All  (Read OAuth consents)
@@ -138,6 +151,7 @@ REQUIRED PERMISSIONS
         'Directory.Read.All'
         'AuditLog.Read.All'
         'Policy.Read.All'
+        'RoleManagement.Read.Directory'
         'Application.Read.All'
         'Application.ReadWrite.All'
         'DelegatedPermissionGrant.Read.All'
