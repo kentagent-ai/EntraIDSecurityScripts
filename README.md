@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PowerShell 5.1+](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://github.com/PowerShell/PowerShell)
 
-PowerShell module for auditing and securing Microsoft Entra ID (Azure AD). Includes **10 comprehensive security audit functions** with risk scoring, recommendations, and CSV export.
+PowerShell module for auditing and securing Microsoft Entra ID (Azure AD). Includes **12 comprehensive security audit functions** with risk scoring, recommendations, and CSV export.
 
 ---
 
@@ -36,6 +36,7 @@ Connect-MgGraph -Scopes @(
     'UserAuthenticationMethod.Read.All'
     'GroupMember.Read.All'
     'Application.Read.All'
+    'Application.ReadWrite.All'  # For credential removal / app disabling
     'DelegatedPermissionGrant.Read.All'
 )
 
@@ -56,17 +57,105 @@ Test-EntraIDSecurityModuleConnection
 | `Get-AdminsWithoutPhishingResistantMFA` | Privileged users without FIDO2/WHfB MFA | Admin security |
 | `Get-InactiveUsersWithoutMFA` | Dormant accounts without MFA | Account hygiene |
 | `Get-SyncedPrivilegedAccounts` | On-prem synced admin accounts | Hybrid attack path |
+| `Get-PIMRoleAssignments` | **NEW** Audit PIM role assignments & policies | Zero Trust / JIT |
 | **Applications & Permissions** | | |
 | `Get-UserConsentedApplications` | "Shadow IT" - user-consented apps | Unauthorized apps |
 | `Get-ExcessiveAppPermissions` | Apps with overprivileged Graph permissions | Least privilege |
 | `Get-UnprotectedServicePrincipals` | Service principals with credential issues | App security |
-| `Get-MailSendAppAudit` | **NEW** Apps with Mail.Send for scoping | Mail security |
+| `Get-MailSendAppAudit` | Apps with Mail.Send for scoping | Mail security |
+| `Get-DormantEnterpriseApplications` | **NEW** Inactive apps with no recent sign-ins | App hygiene |
 | **Utility** | | |
 | `Test-EntraIDSecurityModuleConnection` | Verify Graph connection and scopes | - |
 
 ---
 
-## 🆕 New in v2.3.x
+## 🆕 New Features
+
+### Get-PIMRoleAssignments (v2.5.0 - NEW!)
+Comprehensive Privileged Identity Management (PIM) auditing for Zero Trust compliance.
+
+```powershell
+# Audit all PIM assignments (eligible + active)
+Get-PIMRoleAssignments
+
+# Show only eligible (JIT) assignments
+Get-PIMRoleAssignments -ShowEligibleOnly $true
+
+# Show users with eligible roles who have NEVER activated them
+Get-PIMRoleAssignments -ShowNonElevated
+
+# Find unused eligible assignments (never activated) - includes all assignments
+Get-PIMRoleAssignments -IncludeInactive $true
+
+# Include activation history (last 30 days)
+Get-PIMRoleAssignments -ShowActivationHistory $true
+
+# Export to CSV for compliance reporting
+Get-PIMRoleAssignments -ExportPath "PIM_Audit.csv"
+```
+
+**Key Findings:**
+- ✅ Eligible (JIT) assignments = LOW risk (best practice)
+- ⚠️ Permanent admin assignments = CRITICAL/HIGH risk
+- 🔍 Unused eligible assignments = removal candidates
+- 🚨 Assignments without MFA/approval = policy gaps
+
+**Risk Scoring:**
+- **CRITICAL**: Permanent Global Admin / Privileged Role Admin
+- **HIGH**: Permanent admin roles without JIT
+- **MEDIUM**: Unused eligible assignments
+- **LOW**: Properly configured eligible assignments
+
+**Zero Trust Alignment:**
+- Identifies permanent vs eligible (JIT) assignments
+- Audits activation policies (MFA, approval, max duration)
+- Highlights policy gaps (missing MFA/approval requirements)
+- Tracks activation history to find unused access
+
+### Get-DormantEnterpriseApplications (NEW)
+Find enterprise applications that haven't been used and may be candidates for cleanup.
+
+```powershell
+# Find apps inactive for 90+ days (default)
+Get-DormantEnterpriseApplications
+
+# Find apps inactive for 180+ days
+Get-DormantEnterpriseApplications -DaysInactive 180
+
+# Preview which apps would be disabled
+Get-DormantEnterpriseApplications -DisableApps -WhatIf
+
+# Actually disable dormant apps
+Get-DormantEnterpriseApplications -DisableApps
+
+# List all currently disabled apps
+Get-DormantEnterpriseApplications -DisabledOnly
+
+# Export dormant apps for review
+Get-DormantEnterpriseApplications -ExportPath "dormant-apps.csv"
+```
+
+**Features:**
+- Finds apps with no sign-ins in past X days
+- Uses beta API for accurate lastSignInDateTime
+- `-DisableApps` with `-WhatIf` support for safe cleanup
+- `-DisabledOnly` to audit already-disabled apps
+- Risk scoring based on inactivity duration
+- Excludes Microsoft first-party and Managed Identities
+
+### Get-UnprotectedServicePrincipals - Credential Removal
+Now supports removing expired credentials directly!
+
+```powershell
+# Preview what would be removed (safe)
+Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -WhatIf
+
+# Remove expired credentials (prompts for confirmation)
+Get-UnprotectedServicePrincipals -RemoveExpiredCredentials
+
+# Skip confirmation (use with caution)
+Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -Confirm:$false
+```
 
 ### Get-MailSendAppAudit
 Audit applications with Mail.Send permissions to determine if they can be scoped using Application Access Policies.
@@ -122,6 +211,15 @@ Get-InactiveUsersWithoutMFA -DaysInactive 90
 
 # Find synced admin accounts (hybrid risk)
 Get-SyncedPrivilegedAccounts
+
+# Audit PIM role assignments (Zero Trust compliance)
+Get-PIMRoleAssignments
+
+# Find permanent admin assignments (should be JIT)
+Get-PIMRoleAssignments | Where-Object { $_.AssignmentType -eq 'Active Permanent' }
+
+# Find unused eligible assignments
+Get-PIMRoleAssignments -IncludeInactive $true
 ```
 
 ### Application Security
@@ -136,6 +234,12 @@ Get-ExcessiveAppPermissions | Where-Object { $_.PermissionCount -gt 3 }
 # Audit service principal credentials
 Get-UnprotectedServicePrincipals
 
+# Remove expired credentials (with preview)
+Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -WhatIf
+
+# Find dormant enterprise apps
+Get-DormantEnterpriseApplications -DaysInactive 180
+
 # Audit Mail.Send permissions for scoping
 Get-MailSendAppAudit -Days 30
 ```
@@ -148,8 +252,10 @@ Get-MailSendAppAudit -Days 30
 # High-risk findings only
 Get-ConditionalAccessExclusions | Where-Object { $_.ExclusionType -eq 'Role' }
 Get-AdminsWithoutPhishingResistantMFA | Where-Object { $_.RiskLevel -eq 'CRITICAL' }
+Get-PIMRoleAssignments | Where-Object { $_.RiskLevel -in @('CRITICAL', 'HIGH') }
 Get-UserConsentedApplications | Where-Object { $_.RiskLevel -eq 'CRITICAL' }
 Get-LegacyAuthSignIns | Where-Object { $_.RiskLevel -eq 'HIGH' }
+Get-DormantEnterpriseApplications -DaysInactive 180 | Where-Object { $_.RiskLevel -eq 'HIGH' }
 ```
 
 ---
@@ -165,6 +271,7 @@ Get-LegacyAuthSignIns | Where-Object { $_.RiskLevel -eq 'HIGH' }
 | `UserAuthenticationMethod.Read.All` | Read user MFA methods |
 | `GroupMember.Read.All` | Read group memberships |
 | `Application.Read.All` | Read app registrations |
+| `Application.ReadWrite.All` | Remove credentials / disable apps |
 | `DelegatedPermissionGrant.Read.All` | Read OAuth2 grants |
 
 **For Get-MailSendAppAudit:** Also requires `View-Only Audit Logs` role in Microsoft Purview (Connect-IPPSSession).
@@ -185,16 +292,19 @@ Get-LegacyAuthSignIns | Where-Object { $_.RiskLevel -eq 'HIGH' }
 EntraIDSecurityScripts/
 ├── EntraIDSecurityScripts.psd1       # Module manifest
 ├── EntraIDSecurityScripts.psm1       # Root module loader
-├── Public/                            # Exported functions (10)
+├── Public/                            # Exported functions (12)
 │   ├── Get-ConditionalAccessExclusions.ps1
 │   ├── Get-LegacyAuthSignIns.ps1
 │   ├── Get-AdminsWithoutPhishingResistantMFA.ps1
+│   ├── Get-PIMRoleAssignments.ps1    # NEW (v2.5.0)
 │   ├── Get-UserConsentedApplications.ps1
 │   ├── Get-InactiveUsersWithoutMFA.ps1
 │   ├── Get-ExcessiveAppPermissions.ps1
 │   ├── Get-SyncedPrivilegedAccounts.ps1
 │   ├── Get-UnprotectedServicePrincipals.ps1
-│   └── Get-MailSendAppAudit.ps1       # NEW
+│   ├── Get-MailSendAppAudit.ps1
+│   ├── Get-DormantEnterpriseApplications.ps1
+│   └── Test-EntraIDSecurityModuleConnection.ps1
 ├── Private/                           # Internal helpers
 │   └── Resolve-GraphObjectName.ps1
 └── en-US/                             # Help documentation

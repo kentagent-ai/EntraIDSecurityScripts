@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.4.0'
+    ModuleVersion     = '2.5.0'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -30,6 +30,8 @@
         'Get-SyncedPrivilegedAccounts'
         'Get-UnprotectedServicePrincipals'
         'Get-MailSendAppAudit'
+        'Get-DormantEnterpriseApplications'
+        'Get-PIMRoleAssignments'
         'Test-EntraIDSecurityModuleConnection'
     )
     
@@ -71,6 +73,57 @@
             
             # Release notes
             ReleaseNotes = @'
+## Version 2.5.0 - March 2026
+
+NEW FEATURE - Privileged Identity Management (PIM) Auditing
+
+### New Function:
+- Get-PIMRoleAssignments: Comprehensive PIM role assignment auditing
+  * Identifies eligible (JIT) vs permanent role assignments
+  * Audits activation policies (MFA, approval, duration requirements)
+  * Highlights unused eligible assignments (never activated)
+  * Flags permanent admin assignments that violate Zero Trust
+  * Shows activation history for eligible assignments
+  * Risk scoring: CRITICAL for permanent Global Admin assignments
+  * Detects policy gaps (missing MFA/approval requirements)
+
+### Usage Examples:
+```powershell
+# Audit all PIM assignments
+Get-PIMRoleAssignments
+
+# Show only eligible (JIT) assignments
+Get-PIMRoleAssignments -ShowEligibleOnly $true
+
+# Show users with eligible roles who have NEVER activated them
+Get-PIMRoleAssignments -ShowNonElevated
+
+# Find unused eligible assignments
+Get-PIMRoleAssignments -IncludeInactive $true
+
+# Include activation history (last 30 days)
+Get-PIMRoleAssignments -ShowActivationHistory $true
+
+# Export to CSV
+Get-PIMRoleAssignments -ExportPath ".\PIM_Audit.csv"
+```
+
+### Permissions Required:
+- RoleManagement.Read.Directory
+- AuditLog.Read.All
+- Directory.Read.All
+
+### Key Metrics:
+- Total eligible vs permanent assignments
+- Assignments without MFA/approval requirements
+- Unused eligible assignments (removal candidates)
+- High-risk permanent admin access
+
+### Zero Trust Alignment:
+- Permanent admin assignments = CRITICAL/HIGH risk
+- Eligible (JIT) assignments = LOW risk (best practice)
+- Recommends MFA + approval for Global Admin
+
 ## Version 2.4.0 - March 2026
 
 MAJOR IMPROVEMENT - Get-LegacyAuthSignIns server-side filtering

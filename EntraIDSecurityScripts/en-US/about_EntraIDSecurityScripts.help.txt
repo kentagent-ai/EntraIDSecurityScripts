@@ -11,16 +11,18 @@ LONG DESCRIPTION
     professionals, IT administrators, and compliance teams working with
     Microsoft Entra ID (formerly Azure AD).
 
-    The module provides ten specialized audit functions covering:
+    The module provides twelve specialized audit functions covering:
     - Conditional Access policy exclusions
     - Legacy authentication sign-ins
     - MFA compliance for privileged users
+    - PIM role assignments and Zero Trust compliance (NEW v2.5.0)
     - Shadow IT detection via user app consents
     - Excessive application permissions
     - Inactive user accounts without MFA
     - On-premises synced admin accounts
-    - Unprotected service principals
+    - Unprotected service principals (with credential removal)
     - Mail.Send permission auditing for Application Access Policy scoping
+    - Dormant enterprise applications
 
 GETTING STARTED
     
@@ -47,10 +49,10 @@ AVAILABLE FUNCTIONS
 
     Get-LegacyAuthSignIns
         Finds sign-ins using legacy authentication protocols (IMAP, POP3, SMTP).
-        Performance optimized in v2.2.0 (3-5x faster).
+        v2.4.0: Now queries each protocol separately for better performance.
         
         Example:
-        Get-LegacyAuthSignIns -Days 30 -MaxResults 1000
+        Get-LegacyAuthSignIns -Days 30
 
     Get-AdminsWithoutPhishingResistantMFA
         Identifies privileged users without FIDO2, Windows Hello, or Certificate MFA.
@@ -59,9 +61,20 @@ AVAILABLE FUNCTIONS
         Example:
         Get-AdminsWithoutPhishingResistantMFA
 
+    Get-PIMRoleAssignments (NEW v2.5.0)
+        Audits Privileged Identity Management (PIM) role assignments.
+        Identifies eligible (JIT) vs permanent assignments, policy gaps,
+        and unused eligible assignments. Critical for Zero Trust compliance.
+        
+        Example:
+        Get-PIMRoleAssignments
+        Get-PIMRoleAssignments -ShowEligibleOnly $true
+        Get-PIMRoleAssignments -IncludeInactive $true
+        Get-PIMRoleAssignments -ShowActivationHistory $true
+
     Get-UserConsentedApplications
         Discovers "Shadow IT" by auditing user-consented applications.
-        Performance optimized in v2.2.0 (5-10x faster with parallel processing).
+        Performance optimized with parallel processing (PowerShell 7+).
         
         Example:
         Get-UserConsentedApplications -ThrottleLimit 20
@@ -70,7 +83,7 @@ AVAILABLE FUNCTIONS
         Finds dormant user accounts (90+ days inactive) without MFA enabled.
         
         Example:
-        Get-InactiveUsersWithoutMFA -DaysInactive 180 -MaxResults 500
+        Get-InactiveUsersWithoutMFA -DaysInactive 180
 
     Get-ExcessiveAppPermissions
         Audits applications with overprivileged Microsoft Graph API permissions.
@@ -85,10 +98,12 @@ AVAILABLE FUNCTIONS
         Get-SyncedPrivilegedAccounts
 
     Get-UnprotectedServicePrincipals
-        Identifies service principals with credential issues.
+        Identifies service principals with credential issues (expired, no expiry).
+        NEW: Can remove expired credentials with -RemoveExpiredCredentials.
+        Supports -WhatIf for safe preview.
         
         Example:
-        Get-UnprotectedServicePrincipals
+        Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -WhatIf
 
     Get-MailSendAppAudit
         Audits applications with Mail.Send permissions to determine if they
@@ -101,6 +116,16 @@ AVAILABLE FUNCTIONS
         Connect-MgGraph -Scopes "Application.Read.All"
         Connect-IPPSSession
         Get-MailSendAppAudit -Days 30
+
+    Get-DormantEnterpriseApplications (NEW)
+        Finds enterprise applications with no recent sign-in activity.
+        Can disable dormant apps with -DisableApps.
+        Supports -WhatIf for safe preview.
+        
+        Example:
+        Get-DormantEnterpriseApplications -DaysInactive 90
+        Get-DormantEnterpriseApplications -DisableApps -WhatIf
+        Get-DormantEnterpriseApplications -DisabledOnly
 
     Test-EntraIDSecurityModuleConnection
         Verifies Microsoft Graph connection and required permissions.
@@ -115,7 +140,9 @@ REQUIRED PERMISSIONS
     - Directory.Read.All              (Read users, groups, roles)
     - AuditLog.Read.All               (Read sign-in logs)
     - Policy.Read.All                 (Read Conditional Access policies)
+    - RoleManagement.Read.Directory   (Read PIM role assignments)
     - Application.Read.All            (Read app registrations)
+    - Application.ReadWrite.All       (Remove credentials / disable apps)
     - DelegatedPermissionGrant.Read.All  (Read OAuth consents)
 
     Connect with all permissions:
@@ -124,9 +151,50 @@ REQUIRED PERMISSIONS
         'Directory.Read.All'
         'AuditLog.Read.All'
         'Policy.Read.All'
+        'RoleManagement.Read.Directory'
         'Application.Read.All'
+        'Application.ReadWrite.All'
         'DelegatedPermissionGrant.Read.All'
     )
+
+CREDENTIAL REMOVAL (Get-UnprotectedServicePrincipals)
+    
+    Remove expired credentials safely with WhatIf support:
+    
+    # Preview what would be removed (safe - no changes made)
+    Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -WhatIf
+    
+    # Actually remove expired credentials (prompts for confirmation)
+    Get-UnprotectedServicePrincipals -RemoveExpiredCredentials
+    
+    # Skip confirmation (use with caution!)
+    Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -Confirm:$false
+    
+    Requires: Application.ReadWrite.All permission
+
+DORMANT APP MANAGEMENT (Get-DormantEnterpriseApplications)
+    
+    Find and manage unused enterprise applications:
+    
+    # Find apps inactive for 90+ days (default)
+    Get-DormantEnterpriseApplications
+    
+    # Find apps inactive for 180+ days
+    Get-DormantEnterpriseApplications -DaysInactive 180
+    
+    # Preview which apps would be disabled
+    Get-DormantEnterpriseApplications -DisableApps -WhatIf
+    
+    # Actually disable dormant apps
+    Get-DormantEnterpriseApplications -DisableApps
+    
+    # List all currently disabled apps
+    Get-DormantEnterpriseApplications -DisabledOnly
+    
+    # Export for review
+    Get-DormantEnterpriseApplications -ExportPath "dormant-apps.csv"
+    
+    Requires: Application.ReadWrite.All permission for disabling
 
 RISK LEVELS
     
@@ -144,16 +212,16 @@ RISK LEVELS
     LOW      - Monitor
                Examples: Low-privilege apps, compliant configurations
 
-PERFORMANCE TIPS (v2.2.0+)
+PERFORMANCE TIPS
+    
+    Get-LegacyAuthSignIns (v2.4.0+):
+    - Queries each legacy protocol separately (server-side filtering)
+    - No more MaxResults limit - gets ALL legacy auth sign-ins
+    - Much faster for large tenants
     
     Get-UserConsentedApplications:
     - Use -ThrottleLimit to control parallel processing (default: 10, max: 50)
     - Requires PowerShell 7+ for parallel processing (falls back to sequential on 5.1)
-    - Example: Get-UserConsentedApplications -ThrottleLimit 20
-    
-    Get-LegacyAuthSignIns:
-    - Use -MaxResults for quick scans (default: 5000)
-    - Example: Get-LegacyAuthSignIns -MaxResults 1000
     
     All functions:
     - Use -Verbose for detailed progress information
@@ -181,17 +249,17 @@ EXAMPLES
     
     Exports all privileged users without phishing-resistant MFA.
 
-    Example 4: Audit Conditional Access exclusions
+    Example 4: Clean up expired credentials
     -----------------------------------------------
-    Get-ConditionalAccessExclusions -ExportPath ca-exclusions.csv
+    Get-UnprotectedServicePrincipals -RemoveExpiredCredentials -WhatIf
     
-    Audits all CA policy exclusions and exports to CSV.
+    Preview which expired credentials would be removed.
 
-    Example 5: Find inactive accounts without MFA
+    Example 5: Find and disable dormant apps
     -----------------------------------------------
-    Get-InactiveUsersWithoutMFA -DaysInactive 180 -MaxResults 100
+    Get-DormantEnterpriseApplications -DaysInactive 180 -DisableApps -WhatIf
     
-    Quick scan for users inactive 180+ days without MFA.
+    Preview disabling apps unused for 6+ months.
 
 COMMON WORKFLOWS
     
@@ -201,6 +269,13 @@ COMMON WORKFLOWS
     2. Get-AdminsWithoutPhishingResistantMFA
     3. Get-ConditionalAccessExclusions
     4. Get-UserConsentedApplications
+    
+    Application Hygiene:
+    -------------------
+    1. Get-DormantEnterpriseApplications -DaysInactive 180
+    2. Get-UnprotectedServicePrincipals
+    3. Get-ExcessiveAppPermissions
+    4. Get-MailSendAppAudit
     
     Compliance Audit:
     ----------------
@@ -226,17 +301,19 @@ TROUBLESHOOTING
     
     Problem: Slow performance
     Solution: Use PowerShell 7+ for parallel processing
-              Use -MaxResults or -ThrottleLimit parameters
               Use -Verbose to monitor progress
     
     Problem: Permission grants not found
     Solution: Ensure DelegatedPermissionGrant.Read.All scope is consented
+    
+    Problem: Cannot remove credentials / disable apps
+    Solution: Reconnect with Application.ReadWrite.All scope
 
 SEE ALSO
     
     Get-Help Get-LegacyAuthSignIns -Full
-    Get-Help Get-UserConsentedApplications -Examples
-    Get-Help Get-ConditionalAccessExclusions -Online
+    Get-Help Get-DormantEnterpriseApplications -Full
+    Get-Help Get-UnprotectedServicePrincipals -Examples
     
     Online Resources:
     - PowerShell Gallery: https://www.powershellgallery.com/packages/EntraIDSecurityScripts
