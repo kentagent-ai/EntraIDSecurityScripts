@@ -6,13 +6,13 @@
 
 ### New Parameter: `-ShowNonElevated`
 
-Added a switch parameter to filter PIM role assignments and show only users who have **eligible roles but are NOT currently elevated** (activated).
+Added a switch parameter to filter PIM role assignments and show only users who have **eligible roles but have NEVER activated them** (not even once).
 
 #### Use Cases
-- **Identify dormant admin access:** Find users who have admin privileges available but haven't elevated
-- **Security auditing:** Check who has "sleeping" admin rights in your tenant
-- **Compliance reporting:** Report on eligible-but-inactive privileged accounts
-- **User training:** Identify users who may need reminders about when to elevate
+- **Identify unused eligible assignments:** Find users who were granted JIT access but never used it
+- **Security cleanup:** Remove unnecessary eligible assignments (reduce attack surface)
+- **Compliance reporting:** Report on unused privileged access grants
+- **Access review:** Validate that eligible assignments are actually needed
 
 #### Syntax
 ```powershell
@@ -49,33 +49,34 @@ Get-PIMRoleAssignments -ShowNonElevated -RolesToCheck @('Global Administrator')
 
 The `-ShowNonElevated` switch filters the results to:
 1. **Include:** Users with `AssignmentType = "Eligible (JIT)"`
-2. **Exclude:** Users where `LastActivation = "N/A (Currently Active)"` (meaning they ARE elevated)
+2. **Include:** Users where `LastActivation = "Never"` (never activated, not even once)
+3. **Automatically checks activation history** (queries audit logs for last 30 days)
 
-This gives you a clean view of users who **have the key but haven't unlocked the door yet**.
+This gives you a clean view of users who **were granted eligible access but never used it**.
 
 #### Comparison with Other Parameters
 
 | Parameter | What It Shows |
 |-----------|---------------|
 | *(none)* | All assignments (eligible + active permanent + active time-bound) |
-| `-ShowEligibleOnly $true` | Only eligible assignments (includes currently activated ones) |
-| `-ShowNonElevated` | Only eligible assignments where user is NOT currently elevated |
-| `-IncludeInactive $true` | Highlights eligible assignments never activated (with all other assignments) |
+| `-ShowEligibleOnly $true` | Only eligible assignments (includes both used and never-used) |
+| `-ShowNonElevated` | Only eligible assignments that have NEVER been activated |
+| `-IncludeInactive $true` | All assignments, but highlights never-activated eligible ones |
 
 #### Example Output
 
 ```
-PrincipalName           : John Doe
-PrincipalUPN            : john.doe@contoso.com
-RoleName                : Global Administrator
+PrincipalName           : Jane Smith
+PrincipalUPN            : jane.smith@contoso.com
+RoleName                : Security Administrator
 AssignmentType          : Eligible (JIT)
 RequiresMFA             : True
 RequiresApproval        : True
-LastActivation          : 2026-03-10 14:23:00
-ActivationCount30Days   : 3
+LastActivation          : Never
+ActivationCount30Days   : 0
 ```
 
-This shows John has Global Admin eligible, is not currently elevated, but has activated it 3 times in the last 30 days.
+This shows Jane has Security Admin eligible but has **never activated it** (0 activations in last 30 days). This assignment may be a candidate for removal.
 
 ## Module Version
 - **Before:** 2.5.0

@@ -18,8 +18,8 @@
     Show only eligible (JIT) assignments. Default: $false (shows all)
 
 .PARAMETER ShowNonElevated
-    Show only users who have eligible roles but are NOT currently elevated (activated).
-    This helps identify users with dormant admin access who haven't activated their roles.
+    Show only users who have eligible roles but have NEVER activated them.
+    This helps identify unused eligible assignments that may be candidates for removal.
 
 .PARAMETER ShowActivationHistory
     Include recent activation history for eligible assignments. Queries last 30 days.
@@ -46,8 +46,8 @@
 .EXAMPLE
     Get-PIMRoleAssignments -ShowNonElevated
 
-    Shows only users who have eligible admin roles but are NOT currently elevated.
-    Useful for checking who has dormant admin access.
+    Shows only users who have eligible admin roles but have NEVER activated them.
+    Useful for identifying unused eligible assignments (removal candidates).
 
 .EXAMPLE
     Get-PIMRoleAssignments -IncludeInactive $true
@@ -238,7 +238,7 @@ function Get-PIMRoleAssignments {
                 $activationCount = 0
                 $isUnused = $true
 
-                if ($ShowActivationHistory -or $IncludeInactive) {
+                if ($ShowActivationHistory -or $IncludeInactive -or $ShowNonElevated) {
                     try {
                         $startDate = (Get-Date).AddDays(-30).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
                         $filter = "activityDisplayName eq 'Add member to role completed (PIM activation)' and targetResources/any(t: t/id eq '$($assignment.PrincipalId)' and t/displayName eq '$roleName')"
@@ -396,9 +396,9 @@ function Get-PIMRoleAssignments {
             $beforeCount = $results.Count
             $results = $results | Where-Object { 
                 $_.AssignmentType -eq 'Eligible (JIT)' -and 
-                $_.LastActivation -ne 'N/A (Currently Active)'
+                $_.LastActivation -eq 'Never'
             }
-            Write-Verbose "ShowNonElevated filter: Reduced from $beforeCount to $($results.Count) assignments"
+            Write-Verbose "ShowNonElevated filter: Reduced from $beforeCount to $($results.Count) assignments (never activated)"
         }
 
         # Summary statistics

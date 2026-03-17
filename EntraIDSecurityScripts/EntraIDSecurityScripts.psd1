@@ -77,8 +77,9 @@
 
 ### Enhancement: Get-PIMRoleAssignments
 - NEW: -ShowNonElevated switch parameter
-  * Filters to show only users with eligible roles who are NOT currently elevated
-  * Useful for identifying dormant admin access
+  * Filters to show only users with eligible roles who have NEVER activated them
+  * Useful for identifying unused eligible assignments (removal candidates)
+  * Automatically queries activation history from audit logs
   * Example: Get-PIMRoleAssignments -ShowNonElevated
 
 ## Version 2.5.0 - March 2026

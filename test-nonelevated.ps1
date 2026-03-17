@@ -2,7 +2,7 @@
 # This demonstrates the new -ShowNonElevated parameter
 
 Write-Host "Testing Get-PIMRoleAssignments -ShowNonElevated" -ForegroundColor Cyan
-Write-Host "This will show only users with eligible (JIT) roles who are NOT currently elevated`n" -ForegroundColor Yellow
+Write-Host "This will show only users with eligible (JIT) roles who have NEVER activated them`n" -ForegroundColor Yellow
 
 # Import the module
 Import-Module ./EntraIDSecurityScripts/EntraIDSecurityScripts.psd1 -Force
@@ -17,7 +17,7 @@ Write-Host "  Get-PIMRoleAssignments -ShowNonElevated -ShowActivationHistory `$t
 Write-Host ""
 Write-Host "This will filter to show:" -ForegroundColor Cyan
 Write-Host "  ✓ Users with eligible admin roles" -ForegroundColor White
-Write-Host "  ✓ Who are NOT currently elevated (not active)" -ForegroundColor White
-Write-Host "  ✓ Helps identify dormant admin access" -ForegroundColor White
+Write-Host "  ✓ Who have NEVER activated them (LastActivation = 'Never')" -ForegroundColor White
+Write-Host "  ✓ Helps identify unused eligible assignments for cleanup" -ForegroundColor White
 Write-Host ""
 Write-Host "To run the actual query, connect to Graph and uncomment the test line." -ForegroundColor Yellow
