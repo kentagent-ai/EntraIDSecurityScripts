@@ -17,6 +17,10 @@
 .PARAMETER ShowEligibleOnly
     Show only eligible (JIT) assignments. Default: $false (shows all)
 
+.PARAMETER ShowNonElevated
+    Show only users who have eligible roles but are NOT currently elevated (activated).
+    This helps identify users with dormant admin access who haven't activated their roles.
+
 .PARAMETER ShowActivationHistory
     Include recent activation history for eligible assignments. Queries last 30 days.
 
@@ -38,6 +42,12 @@
     Get-PIMRoleAssignments -ShowEligibleOnly $true
 
     Shows only eligible (JIT) assignments.
+
+.EXAMPLE
+    Get-PIMRoleAssignments -ShowNonElevated
+
+    Shows only users who have eligible admin roles but are NOT currently elevated.
+    Useful for checking who has dormant admin access.
 
 .EXAMPLE
     Get-PIMRoleAssignments -IncludeInactive $true
@@ -70,6 +80,9 @@ function Get-PIMRoleAssignments {
     param(
         [Parameter(Mandatory = $false)]
         [bool]$ShowEligibleOnly = $false,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ShowNonElevated,
 
         [Parameter(Mandatory = $false)]
         [bool]$ShowActivationHistory = $false,
@@ -378,6 +391,16 @@ function Get-PIMRoleAssignments {
     }
 
     end {
+        # Apply ShowNonElevated filter if requested
+        if ($ShowNonElevated) {
+            $beforeCount = $results.Count
+            $results = $results | Where-Object { 
+                $_.AssignmentType -eq 'Eligible (JIT)' -and 
+                $_.LastActivation -ne 'N/A (Currently Active)'
+            }
+            Write-Verbose "ShowNonElevated filter: Reduced from $beforeCount to $($results.Count) assignments"
+        }
+
         # Summary statistics
         $totalAssignments = $results.Count
         $eligibleAssignments = $results | Where-Object { $_.AssignmentType -eq 'Eligible (JIT)' }
