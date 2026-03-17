@@ -81,7 +81,10 @@ Get-PIMRoleAssignments
 # Show only eligible (JIT) assignments
 Get-PIMRoleAssignments -ShowEligibleOnly $true
 
-# Find unused eligible assignments (never activated)
+# Show users with eligible roles who have NEVER activated them
+Get-PIMRoleAssignments -ShowNonElevated
+
+# Find unused eligible assignments (never activated) - includes all assignments
 Get-PIMRoleAssignments -IncludeInactive $true
 
 # Include activation history (last 30 days)
@@ -215,7 +218,10 @@ Get-PIMRoleAssignments
 # Find permanent admin assignments (should be JIT)
 Get-PIMRoleAssignments | Where-Object { $_.AssignmentType -eq 'Active Permanent' }
 
-# Find unused eligible assignments
+# Find users with eligible roles who have NEVER activated them
+Get-PIMRoleAssignments -ShowNonElevated
+
+# Find unused eligible assignments (highlights them among all assignments)
 Get-PIMRoleAssignments -IncludeInactive $true
 ```
 

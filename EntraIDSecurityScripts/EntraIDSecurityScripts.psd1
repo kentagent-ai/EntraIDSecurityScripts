@@ -1,7 +1,7 @@
 @{
     # Module identification
     RootModule        = 'EntraIDSecurityScripts.psm1'
-    ModuleVersion     = '2.5.1'
+    ModuleVersion     = '2.5.0'
     GUID              = 'a3b5c7d9-e1f2-4a6b-8c0d-2e4f6a8b0c2d'
     
     # Author information
@@ -73,15 +73,6 @@
             
             # Release notes
             ReleaseNotes = @'
-## Version 2.5.1 - March 2026
-
-### Enhancement: Get-PIMRoleAssignments
-- NEW: -ShowNonElevated switch parameter
-  * Filters to show only users with eligible roles who have NEVER activated them
-  * Useful for identifying unused eligible assignments (removal candidates)
-  * Automatically queries activation history from audit logs
-  * Example: Get-PIMRoleAssignments -ShowNonElevated
-
 ## Version 2.5.0 - March 2026
 
 NEW FEATURE - Privileged Identity Management (PIM) Auditing
@@ -104,7 +95,7 @@ Get-PIMRoleAssignments
 # Show only eligible (JIT) assignments
 Get-PIMRoleAssignments -ShowEligibleOnly $true
 
-# Show users with eligible roles who are NOT currently elevated
+# Show users with eligible roles who have NEVER activated them
 Get-PIMRoleAssignments -ShowNonElevated
 
 # Find unused eligible assignments
